@@ -8,8 +8,25 @@ import process_steps
 def main():
     # 初始化组件
     plc_server = PLCServer()
-    #robot_a = RobotController("192.168.217.100", "9091", RobotType.ROBOT_A)  # 假设的IP和端口  172.16.9.157
-    robot_b = RobotController("192.168.217.80", "9090", RobotType.ROBOT_B)  # 假设的IP和端口
+    
+    # 初始化机器人控制器，配置自动重连参数：
+    # max_retry_attempts: None=无限重试, 数字=最大重试次数
+    # retry_interval: 重试间隔（秒）
+    robot_a = RobotController(
+        "192.168.217.100", 
+        "9091", 
+        RobotType.ROBOT_A,
+        max_retry_attempts=None,  # 无限重试直到连接成功
+        retry_interval=5  # 每5秒重试一次
+    )
+    
+    robot_b = RobotController(
+        "192.168.217.80", 
+        "9090", 
+        RobotType.ROBOT_B,
+        max_retry_attempts=None,  # 无限重试直到连接成功
+        retry_interval=5  # 每5秒重试一次
+    )
     
     # 启动PLC服务器
     plc_server.start_server(port=MODBUS_PORT)
@@ -18,16 +35,17 @@ def main():
     time.sleep(2)  # 简单等待，实际应用中可能需要更复杂的检查
     # 连接机器人
     #print("Connecting to robots...")
-    #robot_a_connected = robot_a.connect()
+    robot_a_connected = robot_a.connect()
     robot_b_connected = robot_b.connect()
     # 启动自动复位线圈线程
-
+    # process_steps.execute_plc_process(plc_server)
     #process_steps.execute_robotA_test(robot_a, plc_server)      # 单独运行机器人A
-    process_steps.execute_test_process(robot_b, plc_server)    # 单独运行机器人B
-    '''if(process_steps.execute_full_process(robot_a, robot_b, plc_server)): # 全流程测试
-        process_steps.execute_test_process(robot_b, plc_server)'''
+    #process_steps.execute_test_process(robot_b, plc_server)    # 单独运行机器人B
+    process_steps.execute_full_process(robot_a, robot_b, plc_server)
+    #if(process_steps.execute_full_process(robot_a, robot_b, plc_server) and input('是否进入下个循环，输入y/n') == 'n'): # 全流程测试
+        #process_steps.execute_test_process(robot_b, plc_server)
 
-'''   
+    '''   
     if not robot_a_connected or not robot_b_connected:
         print("Failed to connect to one or more robots")
         plc_server.stop()

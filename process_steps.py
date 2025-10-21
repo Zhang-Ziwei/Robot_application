@@ -304,7 +304,7 @@ def execute_full_process(robot_a, robot_b, plc_server, type=1):
         return False
     else:
         print("\n===== Success a_step_search =====")'''
-    a_step_pick_box(robot_a, 0, 240)
+    a_step_pick_box(robot_a, 0, 360)
     a_step_place_box(robot_a, 0)
     time.sleep(1.5)
     # A_step1：机器人A从料箱抓取瓶子放到开瓶器上

@@ -6,7 +6,7 @@ import time
 from constants import RobotType
 
 class RobotController:
-    def __init__(self, host, port, robot_type):
+    def __init__(self, host, port, robot_type, max_retry_attempts=None, retry_interval=5):
         self.host = host
         self.port = port
         self.robot_type = robot_type
@@ -16,24 +16,72 @@ class RobotController:
         self.mutex = threading.Lock()
         self.loop = None
         self.thread = None
+        # 重连配置
+        self.max_retry_attempts = max_retry_attempts  # None表示无限重试
+        self.retry_interval = retry_interval  # 重试间隔（秒）
+        self.retry_count = 0  # 当前重试次数
         
     def connect(self):
-        """连接到机器人WebSocket服务"""
-        with self.mutex:
-            if self.connected:
-                return True
+        """连接到机器人WebSocket服务，支持自动重试"""
+        attempt = 0
+        
+        while True:
+            with self.mutex:
+                if self.connected:
+                    print(f"✓ {self.robot_name} 已连接")
+                    self.retry_count = 0  # 重置重试计数
+                    return True
                 
-            # 创建新的事件循环并在单独的线程中运行
-            self.loop = asyncio.new_event_loop()
-            self.thread = threading.Thread(target=self._run_event_loop, daemon=True)
-            self.thread.start()
+                attempt += 1
+                self.retry_count = attempt
+                
+                # 检查是否超过最大重试次数
+                if self.max_retry_attempts is not None and attempt > self.max_retry_attempts:
+                    print(f"✗ {self.robot_name} 连接失败：已达到最大重试次数 ({self.max_retry_attempts})")
+                    return False
+                
+                # 显示重试信息
+                if attempt == 1:
+                    print(f"\n{'='*60}")
+                    print(f"正在连接 {self.robot_name} ({self.host}:{self.port})...")
+                    if self.max_retry_attempts is None:
+                        print(f"重试策略：无限重试，间隔 {self.retry_interval} 秒")
+                    else:
+                        print(f"重试策略：最多 {self.max_retry_attempts} 次，间隔 {self.retry_interval} 秒")
+                    print(f"{'='*60}\n")
+                else:
+                    print(f"\n[重试 {attempt}/{self.max_retry_attempts if self.max_retry_attempts else '∞'}] 尝试连接 {self.robot_name}...")
+                
+                # 清理之前的连接
+                if self.loop and self.loop.is_running():
+                    self.loop.call_soon_threadsafe(self.loop.stop())
+                if self.thread and self.thread.is_alive():
+                    self.thread.join(timeout=2)
+                
+                # 创建新的事件循环并在单独的线程中运行
+                self.loop = asyncio.new_event_loop()
+                self.thread = threading.Thread(target=self._run_event_loop, daemon=True)
+                self.thread.start()
+                
+                # 等待连接完成
+                start_time = time.time()
+                timeout = 10  # 10秒超时
+                while not self.connected and (time.time() - start_time) < timeout:
+                    time.sleep(0.1)
+                
+                # 检查是否连接成功
+                if self.connected:
+                    print(f"✓ {self.robot_name} 连接成功！")
+                    self.retry_count = 0
+                    return True
             
-            # 等待连接完成
-            start_time = time.time()
-            while not self.connected and (time.time() - start_time) < 10:  # 10秒超时
-                time.sleep(0.1)
-                
-            return self.connected
+            # 连接失败，等待后重试
+            print(f"✗ {self.robot_name} 连接失败")
+            if self.max_retry_attempts is None or attempt < self.max_retry_attempts:
+                print(f"⏳ 等待 {self.retry_interval} 秒后重试...")
+                time.sleep(self.retry_interval)
+            else:
+                return False
     
     def _run_event_loop(self):
         """在单独线程中运行事件循环"""
@@ -119,30 +167,44 @@ class RobotController:
         return self.connected
     
     def send_service_request(self, service, action, type=-1, maxtime=60, extra_params=None):
-        """发送服务请求到机器人"""
+        """发送服务请求到机器人，支持自动重连"""
+        
+        # 如果连接已断开，先尝试重连
+        if not self.connected:
+            print(f"⚠ {self.robot_name} 连接已断开，尝试重新连接...")
+            if not self.connect():
+                print(f"✗ {self.robot_name} 重连失败")
+                return False
+        
         with self.mutex:
             # 详细的连接状态检查
-            if not self.connected:
-                print(f"✗ {self.robot_name} 未连接（connected=False）")
-                return False
-            
             if not self.websocket:
-                print(f"✗ {self.robot_name} WebSocket 对象为空")
-                return False
+                print(f"✗ {self.robot_name} WebSocket 对象为空，尝试重连...")
+                self.connected = False
+                # 释放锁后重连
+                self.mutex.release()
+                result = self.connect()
+                self.mutex.acquire()
+                if not result:
+                    return False
             
             if not self.loop:
-                print(f"✗ {self.robot_name} 事件循环未初始化")
-                return False
+                print(f"✗ {self.robot_name} 事件循环未初始化，尝试重连...")
+                self.connected = False
+                self.mutex.release()
+                result = self.connect()
+                self.mutex.acquire()
+                if not result:
+                    return False
             
             if not self.loop.is_running():
-                print(f"✗ {self.robot_name} 事件循环未运行")
-                return False
-            
-            # 检查 WebSocket 是否仍然打开
-            '''if self.websocket.closed:
-                print(f"✗ {self.robot_name} WebSocket 连接已关闭")
+                print(f"✗ {self.robot_name} 事件循环未运行，尝试重连...")
                 self.connected = False
-                return False'''
+                self.mutex.release()
+                result = self.connect()
+                self.mutex.acquire()
+                if not result:
+                    return False
             
             print(f"✓ {self.robot_name} 连接状态正常，准备发送请求")
 
@@ -171,20 +233,29 @@ class RobotController:
                     self.loop
                 )
 
-                # 等待结果，设置120秒超时
+                # 等待结果，设置超时
                 print(f"[DEBUG] 等待响应（超时{maxtime}秒）...")
                 result = future.result(maxtime)
                 print(f"[DEBUG] 收到响应结果: {result}")
                 return result
                 
             except Exception as e:
-                print(f"{self.robot_name} communication error: {str(e)}")
-                # 发生错误时尝试重连
+                print(f"✗ {self.robot_name} 通信错误: {str(e)}")
+                # 发生错误时标记为断开并尝试重连
                 self.connected = False
-                print(f"{self.robot_name} attempting to reconnect...")
-                return self.connect()
+                print(f"⚠ {self.robot_name} 检测到通信异常，尝试重连...")
+                self.mutex.release()
+                reconnect_result = self.connect()
+                self.mutex.acquire()
+                
+                if reconnect_result:
+                    print(f"✓ {self.robot_name} 重连成功，请重试发送请求")
+                else:
+                    print(f"✗ {self.robot_name} 重连失败")
+                
+                return False
 
-    async def _async_send_and_receive(self, request_str, maxtime):
+    async def _async_send_and_receive(self, request_str, maxtime=60):
         """异步发送请求并等待响应"""
         try:
             print(f"[DEBUG] 发送消息到机器人...")
@@ -236,10 +307,16 @@ class RobotController:
                 return False
                 
         except asyncio.TimeoutError:
-            print(f"{self.robot_name} read timeout")
+            print(f"✗ {self.robot_name} 读取超时（{maxtime}秒）")
+            self.connected = False  # 标记为断开
+            return False
+        except websockets.exceptions.ConnectionClosed as e:
+            print(f"✗ {self.robot_name} WebSocket连接已关闭: {e}")
+            self.connected = False  # 标记为断开
             return False
         except Exception as e:
-            print(f"{self.robot_name} async error: {str(e)}")
+            print(f"✗ {self.robot_name} 异步通信错误: {type(e).__name__}: {str(e)}")
+            self.connected = False  # 标记为断开
             return False
     
     def close(self):
