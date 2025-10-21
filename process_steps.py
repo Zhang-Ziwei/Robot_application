@@ -269,9 +269,8 @@ def execute_test_process(robot_b, plc_server, type=1):
         if not(b_step4(robot_b,plc_server)): break
         if not(plc_step5(plc_server)): break
         if not(plc_step6(plc_server)): break
-        if not(b_step5(robot_b)): break
-        if not(plc_step7(plc_server)): break
         if not(plc_step10(plc_server)): break
+        if not(b_step5(robot_b)): break
         if not(plc_step5(plc_server)): break
         if not(b_step6(robot_b,plc_server)): break
         if not(plc_step11(plc_server)): break
