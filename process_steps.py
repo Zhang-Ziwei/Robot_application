@@ -29,14 +29,24 @@ def a_step3(robot_a):
     return robot_a.send_service_request("/get_strawberry_service", "place_to_equipment")
 
 def a_step4(robot_a, plc_server):
-    """从开瓶器抓取后放到桌面上"""
-    print("\n===== Robot A Step 4: Place finished bottle =====")
+    """从开瓶器抓取后放到箱子里"""
+    print("\n===== Robot A Step 4: Place bottle from opening to box =====")
     # 先等待关盖完成（状态3）
     if not plc_server.wait_for_state(PLCHoldingRegisters.CLOSE_LID_STATE, 3):
         return False
     # 调用机器人服务
     else:
         return robot_a.send_service_request("/get_strawberry_service", "place_to_shelf")
+
+def a_step_cback2shelf(robot_a):
+    """把箱子搬到货架旁"""
+    print("\n===== Robot A Step cback2shelf: Pick box to the shelf =====")
+    return robot_a.send_service_request("/get_strawberry_service", "place_to_equipment")
+
+def a_step_pbox2shelf(robot_a):
+    """把箱子放到货架"""
+    print("\n===== Robot A Step pbox2shelf: Place box on the shelf =====")
+    return robot_a.send_service_request("/get_strawberry_service", "place_to_equipment")
 
 # 机器人B步骤函数
 def b_step1(robot_b):
@@ -201,9 +211,19 @@ def execute_parallel_tasks(robot_a, robot_b, plc_server):
         if not a_step4(robot_a, plc_server):
             task_a_success[0] = False
             return
-            
+
         # PLC_step9：确认关盖完成
         plc_step9(plc_server)
+
+        # a_step_cback：把箱子搬到货架旁
+        if not a_step_cback2shelf(robot_a):
+            task_a_success[0] = False
+            return
+
+        # A_step4：把箱子放到货架
+        if not a_step_pbox2shelf(robot_a):
+            task_a_success[0] = False
+            return
     
     # 启动机器人A任务线程
     thread_a = threading.Thread(target=task_a)

@@ -41,7 +41,8 @@ def main():
     # process_steps.execute_plc_process(plc_server)
     #process_steps.execute_robotA_test(robot_a, plc_server)      # 单独运行机器人A
     #process_steps.execute_test_process(robot_b, plc_server)    # 单独运行机器人B
-    process_steps.execute_full_process(robot_a, robot_b, plc_server)
+    while input('是否进入下个循环，输入y/n') == 'n':
+        process_steps.execute_full_process(robot_a, robot_b, plc_server)
     #if(process_steps.execute_full_process(robot_a, robot_b, plc_server) and input('是否进入下个循环，输入y/n') == 'n'): # 全流程测试
         #process_steps.execute_test_process(robot_b, plc_server)
 
