@@ -166,7 +166,7 @@ class RobotController:
         """检查连接状态"""
         return self.connected
     
-    def send_service_request(self, service, action, type=-1, maxtime=60, extra_params=None):
+    def send_service_request(self, service, action, type=-1, maxtime=120, extra_params=None):
         """发送服务请求到机器人，支持自动重连"""
         
         # 如果连接已断开，先尝试重连
