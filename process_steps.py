@@ -165,7 +165,7 @@ def plc_step9(plc_server):
     """确认关盖完成，设置关盖完成线圈"""
     print("\n===== PLC Step 9: Confirm close finish =====")
     plc_server.set_coil(PLCCoils.CLOSE_FINISH, True)
-    return plc_server.wait_for_state(PLCHoldingRegisters.CLOSE_LID_STATE, 1)
+    return plc_server.wait_for_state(PLCHoldingRegisters.CLOSE_LID_STATE, 0)
 
 def plc_step10(plc_server):
     """确认清洗取料完成，设置清洗完成线圈并等待就绪（状态1）"""
@@ -213,7 +213,9 @@ def execute_parallel_tasks(robot_a, robot_b, plc_server):
             return
 
         # PLC_step9：确认关盖完成
-        plc_step9(plc_server)
+        if not plc_step9(plc_server):
+            task_a_success[0] = False
+            return
 
         # a_step_cback：把箱子搬到货架旁
         if not a_step_cback2shelf(robot_a):
