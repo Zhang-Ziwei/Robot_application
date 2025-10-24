@@ -41,12 +41,12 @@ def a_step4(robot_a, plc_server):
 def a_step_cback2shelf(robot_a):
     """把箱子搬到货架旁"""
     print("\n===== Robot A Step cback2shelf: Pick box to the shelf =====")
-    return robot_a.send_service_request("/get_strawberry_service", "place_to_equipment")
+    return robot_a.send_service_request("/get_strawberry_service", "catch_box_back", 0)
 
 def a_step_pbox2shelf(robot_a):
     """把箱子放到货架"""
     print("\n===== Robot A Step pbox2shelf: Place box on the shelf =====")
-    return robot_a.send_service_request("/get_strawberry_service", "place_to_equipment")
+    return robot_a.send_service_request("/get_strawberry_service", "place_box_to_shelf", 0)
 
 # 机器人B步骤函数
 def b_step1(robot_b):
