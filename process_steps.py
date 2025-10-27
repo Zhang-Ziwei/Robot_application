@@ -325,8 +325,18 @@ def execute_full_process(robot_a, robot_b, plc_server, type=1):
         return False
     else:
         print("\n===== Success a_step_search =====")'''
-    a_step_pick_box(robot_a, 0, 360)
-    a_step_place_box(robot_a, 0)
+    if not a_step_pick_box(robot_a, 0, 360):
+        print("\n===== Fail a_step_pick_box =====")
+        return False
+    else:
+        print("\n===== Success a_step_pick_box =====")
+
+    if not a_step_place_box(robot_a, 0):
+        print("\n===== Fail a_step_place_box =====")
+        return False
+    else:
+        print("\n===== Success a_step_place_box =====")
+
     time.sleep(1.5)
     # A_step1：机器人A从料箱抓取瓶子放到开瓶器上
     if not a_step1(robot_a, type):
@@ -387,8 +397,10 @@ def execute_robotA_test(robot_a, plc_server):
     
     # 这里实现机器人A的测试流程
     # A_step1：从料箱抓取瓶子放到开瓶器
-    a_step_pick_box(robot_a, 0, 240)
-    a_step_place_box(robot_a, 0)
+    if not a_step_pick_box(robot_a, 0, 240):
+        return False
+    if not a_step_place_box(robot_a, 0):
+        return False
     time.sleep(1.5)
     if not a_step1(robot_a, 1):
         return False
@@ -415,9 +427,18 @@ def execute_robotA_test(robot_a, plc_server):
     # A_step4：从开瓶器抓取放到桌面
     if not a_step4(robot_a, plc_server):
         return False
-    
+
     # PLC_step9：确认关盖完成
-    plc_step9(plc_server)
-    
+    if not plc_step9(plc_server):
+        return False
+
+    # a_step_cback：把箱子搬到货架旁
+    if not a_step_cback2shelf(robot_a):
+        return False
+
+    # A_step4：把箱子放到货架
+    if not a_step_pbox2shelf(robot_a):
+        return False
+
     print("\n===== Robot A Test Completed Successfully =====")
     return True
