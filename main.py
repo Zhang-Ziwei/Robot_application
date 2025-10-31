@@ -1,11 +1,24 @@
 import time
 import threading
+import sys
 from plc_modbus import PLCServer
 from robot_controller import RobotController
 from constants import RobotType, MODBUS_PORT
 import process_steps
+from error_logger import get_error_logger
+from file_lock import ensure_single_instance
 
 def main():
+    # 检查程序是否已在运行（文件锁）
+    lock = ensure_single_instance("robot_control.lock")
+    if not lock:
+        sys.exit(1)
+    
+    # 初始化错误日志
+    logger = get_error_logger()
+    logger.info("系统", "机器人控制系统启动")
+    print(f"日志文件: {logger.get_log_file()}")
+    
     # 初始化组件
     plc_server = PLCServer()
     
@@ -41,8 +54,34 @@ def main():
     # process_steps.execute_plc_process(plc_server)
     #process_steps.execute_robotA_test(robot_a, plc_server)      # 单独运行机器人A
     #process_steps.execute_test_process(robot_b, plc_server)    # 单独运行机器人B
-    while input('是否进入下个循环，输入y/n') == 'y':
-        process_steps.execute_full_process(robot_a, robot_b, plc_server)
+    
+    try:
+        cycle_count = 0
+        while input('是否进入下个循环，输入y/n') == 'y':
+            cycle_count += 1
+            logger.info("系统", f"开始执行第 {cycle_count} 次完整流程")
+            try:
+                process_steps.execute_full_process(robot_a, robot_b, plc_server)
+                logger.info("系统", f"第 {cycle_count} 次完整流程执行完成")
+            except Exception as e:
+                logger.exception_occurred("系统", f"第{cycle_count}次流程执行", e)
+                print(f"执行出错: {e}")
+    except KeyboardInterrupt:
+        logger.warning("系统", "用户中断程序 (Ctrl+C)")
+        print("\n程序被用户中断")
+    except Exception as e:
+        logger.exception_occurred("系统", "主循环", e)
+        print(f"发生错误: {e}")
+    finally:
+        logger.info("系统", "开始清理资源")
+        robot_a.close()
+        robot_b.close()
+        plc_server.stop()
+        logger.info("系统", "机器人控制系统已停止")
+        # 释放文件锁
+        if lock:
+            lock.release()
+            print("程序锁已释放")
     #if(process_steps.execute_full_process(robot_a, robot_b, plc_server) and input('是否进入下个循环，输入y/n') == 'n'): # 全流程测试
         #process_steps.execute_test_process(robot_b, plc_server)
 

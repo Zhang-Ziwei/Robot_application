@@ -4,6 +4,7 @@ import json
 import threading
 import time
 from constants import RobotType
+from error_logger import get_error_logger
 
 class RobotController:
     def __init__(self, host, port, robot_type, max_retry_attempts=None, retry_interval=5):
@@ -37,7 +38,12 @@ class RobotController:
                 
                 # 检查是否超过最大重试次数
                 if self.max_retry_attempts is not None and attempt > self.max_retry_attempts:
-                    print(f"✗ {self.robot_name} 连接失败：已达到最大重试次数 ({self.max_retry_attempts})")
+                    error_msg = f"连接失败：已达到最大重试次数 ({self.max_retry_attempts})"
+                    print(f"✗ {self.robot_name} {error_msg}")
+                    # 记录错误日志
+                    get_error_logger().connection_failed(
+                        self.robot_name, self.host, self.port, error_msg
+                    )
                     return False
                 
                 # 显示重试信息
@@ -72,6 +78,10 @@ class RobotController:
                 # 检查是否连接成功
                 if self.connected:
                     print(f"✓ {self.robot_name} 连接成功！")
+                    # 记录连接成功
+                    get_error_logger().connection_success(
+                        self.robot_name, self.host, self.port, attempt
+                    )
                     self.retry_count = 0
                     return True
             
@@ -104,6 +114,9 @@ class RobotController:
             print(f"✓ DNS 解析成功: {self.host} -> {ip_addr}")
         except socket.gaierror as e:
             print(f"✗ DNS 解析失败: {e}")
+            get_error_logger().connection_failed(
+                self.robot_name, self.host, self.port, f"DNS解析失败: {e}"
+            )
         
         # 2. 检查 TCP 连接
         print(f"正在测试 TCP 连接到 {self.host}:{self.port}...")
@@ -114,15 +127,27 @@ class RobotController:
             print(f"✓ TCP 连接成功")
             tcp_socket.close()
         except socket.timeout:
-            print(f"✗ TCP 连接超时 - 可能被防火墙阻止或服务未运行")
+            error_msg = "TCP 连接超时 - 可能被防火墙阻止或服务未运行"
+            print(f"✗ {error_msg}")
+            get_error_logger().connection_failed(
+                self.robot_name, self.host, self.port, error_msg
+            )
             self.connected = False
             return
         except ConnectionRefusedError:
-            print(f"✗ 连接被拒绝 - 端口 {self.port} 上没有服务监听")
+            error_msg = f"连接被拒绝 - 端口 {self.port} 上没有服务监听"
+            print(f"✗ {error_msg}")
+            get_error_logger().connection_failed(
+                self.robot_name, self.host, self.port, error_msg
+            )
             self.connected = False
             return
         except Exception as e:
-            print(f"✗ TCP 连接失败: {type(e).__name__}: {e}")
+            error_msg = f"TCP 连接失败: {type(e).__name__}: {e}"
+            print(f"✗ {error_msg}")
+            get_error_logger().exception_occurred(
+                self.robot_name, "TCP连接", e
+            )
             self.connected = False
             return
         
@@ -160,6 +185,10 @@ class RobotController:
             print(f"   错误信息: {str(e)}")
             import traceback
             traceback.print_exc()
+            # 记录WebSocket连接失败
+            get_error_logger().exception_occurred(
+                self.robot_name, "WebSocket连接", e
+            )
             self.connected = False
     
     def is_connected(self):
@@ -172,8 +201,10 @@ class RobotController:
         # 如果连接已断开，先尝试重连
         if not self.connected:
             print(f"⚠ {self.robot_name} 连接已断开，尝试重新连接...")
+            get_error_logger().warning(self.robot_name, "发送请求前检测到连接断开，尝试重连")
             if not self.connect():
                 print(f"✗ {self.robot_name} 重连失败")
+                get_error_logger().error(self.robot_name, "重连失败，无法发送请求")
                 return False
         
         with self.mutex:
@@ -237,10 +268,20 @@ class RobotController:
                 print(f"[DEBUG] 等待响应（超时{maxtime}秒）...")
                 result = future.result(maxtime)
                 print(f"[DEBUG] 收到响应结果: {result}")
+                
+                # 记录请求结果
+                if result:
+                    get_error_logger().request_success(self.robot_name, service, action)
+                else:
+                    get_error_logger().request_failed(self.robot_name, service, action, "机器人返回失败")
+                
                 return result
                 
             except Exception as e:
                 print(f"✗ {self.robot_name} 通信错误: {str(e)}")
+                # 记录通信异常
+                get_error_logger().exception_occurred(self.robot_name, "发送请求", e)
+                
                 # 发生错误时标记为断开并尝试重连
                 self.connected = False
                 print(f"⚠ {self.robot_name} 检测到通信异常，尝试重连...")
@@ -307,15 +348,21 @@ class RobotController:
                 return False
                 
         except asyncio.TimeoutError:
-            print(f"✗ {self.robot_name} 读取超时（{maxtime}秒）")
+            error_msg = f"读取超时（{maxtime}秒）"
+            print(f"✗ {self.robot_name} {error_msg}")
+            get_error_logger().error(self.robot_name, error_msg)
             self.connected = False  # 标记为断开
             return False
         except websockets.exceptions.ConnectionClosed as e:
-            print(f"✗ {self.robot_name} WebSocket连接已关闭: {e}")
+            error_msg = f"WebSocket连接已关闭: {e}"
+            print(f"✗ {self.robot_name} {error_msg}")
+            get_error_logger().error(self.robot_name, error_msg)
             self.connected = False  # 标记为断开
             return False
         except Exception as e:
-            print(f"✗ {self.robot_name} 异步通信错误: {type(e).__name__}: {str(e)}")
+            error_msg = f"异步通信错误: {type(e).__name__}: {str(e)}"
+            print(f"✗ {self.robot_name} {error_msg}")
+            get_error_logger().exception_occurred(self.robot_name, "异步通信", e)
             self.connected = False  # 标记为断开
             return False
     
