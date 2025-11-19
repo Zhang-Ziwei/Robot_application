@@ -44,5 +44,6 @@ Thumbs.db
 # Project specific
 *.pyc
 *.lock
+storage_state.json
 
 

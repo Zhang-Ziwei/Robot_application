@@ -7,9 +7,9 @@ from constants import RobotType
 from error_logger import get_error_logger
 
 class RobotController:
-    def __init__(self, host, port, robot_type, max_retry_attempts=None, retry_interval=5):
+    def __init__(self, host, port=None, robot_type=None, max_retry_attempts=None, retry_interval=5):
         self.host = host
-        self.port = port
+        self.port = port  # None表示不使用端口（WiFi连接时）
         self.robot_type = robot_type
         self.robot_name = "Robot A" if robot_type == RobotType.ROBOT_A else "Robot B"
         self.connected = False
@@ -21,6 +21,23 @@ class RobotController:
         self.max_retry_attempts = max_retry_attempts  # None表示无限重试
         self.retry_interval = retry_interval  # 重试间隔（秒）
         self.retry_count = 0  # 当前重试次数
+        # Topic订阅相关
+        self.subscribed_topics = {}  # {topic_name: callback_function}
+        self.topic_messages = {}  # {topic_name: latest_message}
+    
+    def _get_address_str(self):
+        """获取地址字符串（用于显示）"""
+        if self.port:
+            return f"{self.host}:{self.port}"
+        else:
+            return self.host
+    
+    def _get_uri(self):
+        """获取WebSocket URI"""
+        if self.port:
+            return f"ws://{self.host}:{self.port}/"
+        else:
+            return f"ws://{self.host}/"
         
     def connect(self):
         """连接到机器人WebSocket服务，支持自动重试"""
@@ -49,7 +66,7 @@ class RobotController:
                 # 显示重试信息
                 if attempt == 1:
                     print(f"\n{'='*60}")
-                    print(f"正在连接 {self.robot_name} ({self.host}:{self.port})...")
+                    print(f"正在连接 {self.robot_name} ({self._get_address_str()})...")
                     if self.max_retry_attempts is None:
                         print(f"重试策略：无限重试，间隔 {self.retry_interval} 秒")
                     else:
@@ -106,7 +123,7 @@ class RobotController:
         
         # 先进行网络诊断
         print(f"\n=== {self.robot_name} 网络诊断 ===")
-        print(f"目标地址: {self.host}:{self.port}")
+        print(f"目标地址: {self._get_address_str()}")
         
         # 1. 检查 DNS 解析（如果是域名）
         try:
@@ -118,43 +135,46 @@ class RobotController:
                 self.robot_name, self.host, self.port, f"DNS解析失败: {e}"
             )
         
-        # 2. 检查 TCP 连接
-        print(f"正在测试 TCP 连接到 {self.host}:{self.port}...")
-        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_socket.settimeout(5)
-        try:
-            tcp_socket.connect((self.host, int(self.port)))
-            print(f"✓ TCP 连接成功")
-            tcp_socket.close()
-        except socket.timeout:
-            error_msg = "TCP 连接超时 - 可能被防火墙阻止或服务未运行"
-            print(f"✗ {error_msg}")
-            get_error_logger().connection_failed(
-                self.robot_name, self.host, self.port, error_msg
-            )
-            self.connected = False
-            return
-        except ConnectionRefusedError:
-            error_msg = f"连接被拒绝 - 端口 {self.port} 上没有服务监听"
-            print(f"✗ {error_msg}")
-            get_error_logger().connection_failed(
-                self.robot_name, self.host, self.port, error_msg
-            )
-            self.connected = False
-            return
-        except Exception as e:
-            error_msg = f"TCP 连接失败: {type(e).__name__}: {e}"
-            print(f"✗ {error_msg}")
-            get_error_logger().exception_occurred(
-                self.robot_name, "TCP连接", e
-            )
-            self.connected = False
-            return
+        # 2. 检查 TCP 连接（仅在指定端口时）
+        if self.port:
+            print(f"正在测试 TCP 连接到 {self._get_address_str()}...")
+            tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            tcp_socket.settimeout(5)
+            try:
+                tcp_socket.connect((self.host, int(self.port)))
+                print(f"✓ TCP 连接成功")
+                tcp_socket.close()
+            except socket.timeout:
+                error_msg = "TCP 连接超时 - 可能被防火墙阻止或服务未运行"
+                print(f"✗ {error_msg}")
+                get_error_logger().connection_failed(
+                    self.robot_name, self.host, self.port, error_msg
+                )
+                self.connected = False
+                return
+            except ConnectionRefusedError:
+                error_msg = f"连接被拒绝 - 端口 {self.port} 上没有服务监听"
+                print(f"✗ {error_msg}")
+                get_error_logger().connection_failed(
+                    self.robot_name, self.host, self.port, error_msg
+                )
+                self.connected = False
+                return
+            except Exception as e:
+                error_msg = f"TCP 连接失败: {type(e).__name__}: {e}"
+                print(f"✗ {error_msg}")
+                get_error_logger().exception_occurred(
+                    self.robot_name, "TCP连接", e
+                )
+                self.connected = False
+                return
+        else:
+            print(f"跳过 TCP 连接测试（WiFi模式，无端口号）")
         
         # 3. 尝试 WebSocket 连接
         print(f"正在建立 WebSocket 连接...")
         try:
-            uri = f"ws://{self.host}:{self.port}/"
+            uri = self._get_uri()
             print(f"WebSocket URI: {uri}")
             
             # 尝试带 rosbridge 协议
@@ -177,7 +197,7 @@ class RobotController:
                 print(f"✓ WebSocket 连接成功 (标准协议)")
             
             self.connected = True
-            print(f"✓ {self.robot_name} 已成功连接到 {self.host}:{self.port}")
+            print(f"✓ {self.robot_name} 已成功连接到 {self._get_address_str()}")
             
         except Exception as e:
             print(f"✗ WebSocket 连接失败:")
@@ -252,7 +272,7 @@ class RobotController:
 
                 if extra_params:
                     for key, value in extra_params.items():
-                        request["args"][key] = value
+                        request["args"]["strawberry"] = {key: value}
 
                 request_str = json.dumps(request, indent=4)
                 print(f"{self.robot_name} sending request:\n{request_str}")
@@ -328,15 +348,20 @@ class RobotController:
             has_result = "result" in response
             result_value = response.get("result", False)
             print(f"[DEBUG] result 字段存在: {has_result}, 值: {result_value}")
-            
             # 检查 finish 字段
             has_finish = "finish" in values
             finish_value = values.get("finish", False)
             print(f"[DEBUG] finish 字段存在: {has_finish}, 值: {finish_value}")
-            
+            # 检查cv_detect字段
+            has_target_pose_return = "target_pose_return" in values
+            target_pose_return_value = values.get("target_pose_return", False)
+            has_type_return = "type_return" in values
+            type_return_value = values.get("type_return", False)
+            if target_pose_return_value!=None and type_return_value!=None:
+                return True, target_pose_return_value, type_return_value
+
             # 判断操作是否成功
             operation_success = (result_value and finish_value)
-            
             if operation_success:
                 print(f"✓ {self.robot_name} 操作成功完成")
                 return True
@@ -365,6 +390,159 @@ class RobotController:
             get_error_logger().exception_occurred(self.robot_name, "异步通信", e)
             self.connected = False  # 标记为断开
             return False
+    
+    def subscribe_topic(self, topic_name, msg_type="std_msgs/String", throttle_rate=0, queue_length=1):
+        """
+        订阅ROS topic
+        
+        参数:
+            topic_name: topic名称，如 "/navigation_status"
+            msg_type: 消息类型，如 "std_msgs/String" 或 "NavigationStatus"
+            throttle_rate: 节流速率（毫秒），0表示不节流
+            queue_length: 队列长度
+        
+        返回:
+            bool: 订阅是否成功
+        """
+        if not self.connected:
+            print(f"✗ {self.robot_name} 未连接，无法订阅topic")
+            return False
+        
+        try:
+            # 构建订阅请求
+            subscribe_request = {
+                "op": "subscribe",
+                "topic": topic_name,
+                "type": msg_type,
+                "throttle_rate": throttle_rate,
+                "queue_length": queue_length
+            }
+            
+            request_str = json.dumps(subscribe_request)
+            print(f"{self.robot_name} 订阅topic: {topic_name}")
+            print(f"订阅请求: {request_str}")
+            
+            # 发送订阅请求
+            future = asyncio.run_coroutine_threadsafe(
+                self.websocket.send(request_str),
+                self.loop
+            )
+            future.result(5)  # 5秒超时
+            
+            # 记录订阅
+            self.subscribed_topics[topic_name] = msg_type
+            self.topic_messages[topic_name] = None
+            
+            # 启动消息接收循环（如果尚未启动）
+            if not hasattr(self, '_topic_listener_started') or not self._topic_listener_started:
+                self._topic_listener_started = True
+                asyncio.run_coroutine_threadsafe(
+                    self._topic_message_listener(),
+                    self.loop
+                )
+            
+            print(f"✓ {self.robot_name} 成功订阅topic: {topic_name}")
+            return True
+            
+        except Exception as e:
+            print(f"✗ {self.robot_name} 订阅topic失败: {str(e)}")
+            get_error_logger().exception_occurred(self.robot_name, f"订阅topic {topic_name}", e)
+            return False
+    
+    def unsubscribe_topic(self, topic_name):
+        """
+        取消订阅ROS topic
+        
+        参数:
+            topic_name: topic名称
+        
+        返回:
+            bool: 取消订阅是否成功
+        """
+        if not self.connected:
+            print(f"✗ {self.robot_name} 未连接")
+            return False
+        
+        try:
+            # 构建取消订阅请求
+            unsubscribe_request = {
+                "op": "unsubscribe",
+                "topic": topic_name
+            }
+            
+            request_str = json.dumps(unsubscribe_request)
+            print(f"{self.robot_name} 取消订阅topic: {topic_name}")
+            
+            # 发送取消订阅请求
+            future = asyncio.run_coroutine_threadsafe(
+                self.websocket.send(request_str),
+                self.loop
+            )
+            future.result(5)  # 5秒超时
+            
+            # 从记录中移除
+            if topic_name in self.subscribed_topics:
+                del self.subscribed_topics[topic_name]
+            if topic_name in self.topic_messages:
+                del self.topic_messages[topic_name]
+            
+            print(f"✓ {self.robot_name} 成功取消订阅topic: {topic_name}")
+            return True
+            
+        except Exception as e:
+            print(f"✗ {self.robot_name} 取消订阅topic失败: {str(e)}")
+            get_error_logger().exception_occurred(self.robot_name, f"取消订阅topic {topic_name}", e)
+            return False
+    
+    async def _topic_message_listener(self):
+        """
+        后台监听topic消息（异步）
+        持续接收并存储最新的topic消息
+        """
+        print(f"[DEBUG] {self.robot_name} 启动topic消息监听器")
+        
+        try:
+            while self.connected and self.websocket:
+                try:
+                    # 接收消息
+                    message_str = await asyncio.wait_for(self.websocket.recv(), timeout=1.0)
+                    message = json.loads(message_str)
+                    
+                    # 检查是否是topic消息
+                    if message.get("op") == "publish":
+                        topic_name = message.get("topic")
+                        msg_data = message.get("msg")
+                        
+                        if topic_name in self.subscribed_topics:
+                            # 存储最新消息
+                            self.topic_messages[topic_name] = msg_data
+                            # print(f"[DEBUG] {self.robot_name} 收到topic消息: {topic_name}") # 显示是否收到消息
+                            # print(f"        消息内容: {msg_data}")
+                    
+                except asyncio.TimeoutError:
+                    # 超时是正常的，继续循环
+                    continue
+                except Exception as e:
+                    print(f"[DEBUG] {self.robot_name} topic监听器错误: {e}")
+                    break
+                    
+        except Exception as e:
+            print(f"✗ {self.robot_name} topic监听器异常退出: {e}")
+        finally:
+            print(f"[DEBUG] {self.robot_name} topic消息监听器已停止")
+            self._topic_listener_started = False
+    
+    def get_topic_message(self, topic_name):
+        """
+        获取topic的最新消息
+        
+        参数:
+            topic_name: topic名称
+        
+        返回:
+            dict: 最新的消息数据，如果没有则返回None
+        """
+        return self.topic_messages.get(topic_name)
     
     def close(self):
         """关闭与机器人的连接"""

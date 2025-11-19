@@ -1,0 +1,16 @@
+{
+  "header": {
+      "seq": 206,
+      "stamp": {
+          "secs": 1698000050,
+          "nsecs": 234567
+      },
+      "frame_id": "camera_link"
+  },
+  "cmd_id": "GET_TASK_STATE_001",
+  "cmd_type": "GET_TASK_STATE",
+  "params": {
+        "target_cmd_id": "SCAN_QRCODE_001"
+    },
+  "extra": {}
+}

@@ -35,3 +35,16 @@ MODULE_NAMES = [
 
 # Modbus配置
 MODBUS_PORT = 502  # 使用非特权端口避免权限问题
+
+# HTTP服务器配置
+HTTP_SERVER_PORT = 8090  # HTTP服务器端口（注意：8081被Docker容器占用）
+
+# 后部暂存区默认配置
+DEFAULT_BACK_TEMP_STORAGE = {
+    "glass_bottle_1000": [0, 0, 0, 0],
+    "glass_bottle_500": [0, 0, 0, 0],
+    "glass_bottle_250": [0, 0, 0, 0]
+}
+
+# 存储状态文件路径
+STORAGE_STATE_FILE = "storage_state.json"
