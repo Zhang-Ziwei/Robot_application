@@ -3,7 +3,7 @@ import threading
 import sys
 import json
 import os
-from plc_modbus import PLCServer
+# from plc_modbus import PLCServer  # PLC功能暂时不需要
 from robot_controller import RobotController
 from constants import RobotType, MODBUS_PORT, HTTP_SERVER_PORT
 import process_steps
@@ -13,6 +13,14 @@ from cmd_handler import init_cmd_handler, get_cmd_handler # 添加新功能的�
 from http_server import get_http_server
 from task_queue import get_task_queue
 from storage_manager import init_storage_manager, get_storage_manager
+
+robot_a = RobotController(
+        "10.114.126.51",
+        "9091",
+        RobotType.ROBOT_A,
+        max_retry_attempts=None,  # 无限重试直到连接成功
+        retry_interval=5  # 每5秒重试一次
+    )
 
 def main():
     # 检查程序是否已在运行（文件锁）
@@ -46,7 +54,8 @@ def main():
         except:
             print("无法读取历史状态文件")
         
-        reset_choice = input("\n是否重置暂存区状态为全空？(y/n) [默认: n]: ").strip().lower()
+        # reset_choice = input("\n是否重置暂存区状态为全空？(y/n) [默认: n]: ").strip().lower()
+        reset_choice = "y"
         reset_storage = (reset_choice == 'y')
     else:
         print("未检测到历史状态文件，将使用默认配置（全空）")
@@ -68,7 +77,8 @@ def main():
     print(storage_mgr.display_storage_status())
     
     # 初始化组件
-    plc_server = PLCServer()
+    # plc_server = PLCServer()  # PLC功能暂时不需要
+    plc_server = None  # PLC功能暂时不需要
     
     # 初始化机器人控制器，配置自动重连参数：
     # max_retry_attempts: None=无限重试, 数字=最大重试次数
@@ -79,13 +89,13 @@ def main():
     # 
     # 有线模式（需要端口）：
     '''robot_a = RobotController(
-        "172.16.8.119",
+        "172.20.10.3",
         "9091",
         RobotType.ROBOT_A,
         max_retry_attempts=None,  # 无限重试直到连接成功
         retry_interval=5  # 每5秒重试一次
     )'''
-    robot_a = None
+    #robot_a = None
     '''robot_b = RobotController(
         "192.168.217.80", 
         "9090", 
@@ -96,10 +106,10 @@ def main():
     robot_b = None  # 测试模式下不需要robot_b
     
     # 启动PLC服务器
-    plc_server.start_server(port=MODBUS_PORT)
+    # plc_server.start_server(port=MODBUS_PORT)  # PLC功能暂时不需要
     # 等待所有连接就绪
-    print("Waiting for all connections to be ready...")
-    time.sleep(2)  # 简单等待，实际应用中可能需要更复杂的检查
+    #print("Waiting for all connections to be ready...")
+    #time.sleep(2)  # 简单等待，实际应用中可能需要更复杂的检查
     # 连接机器人
     #print("Connecting to robots...")
     #robot_a_connected = robot_a.connect()
@@ -114,8 +124,8 @@ def main():
     print("="*70)
     
     try:
-        mode = input("请选择模式 (1/2/3) [默认: 1]: ").strip() or "1"
-        
+        # mode = input("请选择模式 (1/2/3) [默认: 1]: ").strip() or "1"
+        mode = "1"
         if mode == "1":
             # HTTP服务器模式
             run_http_server_mode(robot_a, robot_b, plc_server, logger, lock)
@@ -147,9 +157,15 @@ def main():
         except:
             pass  # 如果存储管理器未初始化，跳过
         
-        #robot_a.close()
+        # 关闭机器人连接
+        try:
+            if robot_a and robot_a.is_connected():
+                robot_a.close()
+                print("✓ 机器人A连接已关闭")
+        except:
+            pass
         # robot_b.close()  # 测试模式下不需要
-        plc_server.stop()
+        # plc_server.stop()  # PLC功能暂时不需要
         logger.info("系统", "机器人控制系统已停止")
         # 释放文件锁
         if lock:
@@ -169,17 +185,19 @@ def run_http_server_mode(robot_a, robot_b, plc_server, logger, lock):
     print("  1. 同步模式（立即执行，适合单个命令）")
     print("  2. 队列模式（排队执行，适合多个命令）")
     
-    mode_choice = input("请选择模式 (1/2) [默认: 2]: ").strip() or "2"
+    # mode_choice = input("请选择模式 (1/2) [默认: 2]: ").strip() or "2"
+    mode_choice = "1"
     use_queue = (mode_choice == "2")
     
-    # 初始化命令处理器
-    init_cmd_handler(robot_a, robot_b)
+    # 暂时不初始化命令处理器（等待START_WORKING后再初始化）
+    # init_cmd_handler(robot_a, robot_b)
     
     # 启动HTTP服务器
     http_server = get_http_server(host='0.0.0.0', port=HTTP_SERVER_PORT)
     http_server.set_command_callback(lambda cmd: get_cmd_handler().handle_command(cmd))
     
     # 如果启用队列模式
+    task_queue = None
     if use_queue:
         task_queue = get_task_queue()
         task_queue.start()
@@ -190,6 +208,9 @@ def run_http_server_mode(robot_a, robot_b, plc_server, logger, lock):
     else:
         print("\n✓ 同步模式已启用")
         print("  - 命令会立即执行（不排队）")
+    
+    # 先设置一个临时的命令处理器，只处理START_WORKING命令
+    init_cmd_handler(None, None)
     
     http_server.start()
     
@@ -228,7 +249,61 @@ def run_http_server_mode(robot_a, robot_b, plc_server, logger, lock):
     print("\n按 Ctrl+C 停止服务器")
     print("="*70 + "\n")
     
+    # 等待START_WORKING命令
+    print("\n" + "="*70)
+    print("⏸️  程序进入休眠状态")
+    print("="*70)
+    print("等待接收 START_WORKING 命令...")
+    print("（此时机器人未连接，仅HTTP服务器在运行）")
+    print(f"\n发送启动命令:")
+    print(f"  curl -X POST http://localhost:{HTTP_SERVER_PORT} -H 'Content-Type: application/json' -d @test_commands/START_WORKING_command.json")
+    if local_ip != "无法获取":
+        print(f"\n远程发送:")
+        print(f"  curl -X POST http://{local_ip}:{HTTP_SERVER_PORT} -H 'Content-Type: application/json' -d @test_commands/START_WORKING_command.json")
+    print("\n" + "="*70 + "\n")
+    
+    logger.info("系统", "程序进入休眠状态，等待START_WORKING命令")
+    
     try:
+        # 等待START_WORKING事件触发
+        cmd_handler = get_cmd_handler()
+        cmd_handler.start_working_event.wait()
+        
+        print("\n" + "="*70)
+        print("✅ 已接收START_WORKING命令")
+        print("="*70)
+        logger.info("系统", "已接收START_WORKING命令，开始连接机器人")
+        
+        # 连接机器人
+        print("\n正在创建机器人控制器...")
+        '''robot_a = RobotController(
+            "172.16.8.119",
+            "9091",
+            RobotType.ROBOT_A,
+            max_retry_attempts=None,  # 无限重试直到连接成功
+            retry_interval=5  # 每5秒重试一次
+        )'''
+        
+        print("正在连接机器人A...")
+        robot_a_connected = robot_a.connect()
+        
+        if not robot_a_connected:
+            print("❌ 机器人A连接失败")
+            logger.error("系统", "机器人A连接失败")
+            return
+        
+        print("✅ 机器人A连接成功")
+        logger.info("系统", "机器人A连接成功")
+        
+        # 重新初始化命令处理器（使用真正的robot_a）
+        print("重新初始化命令处理器...")
+        init_cmd_handler(robot_a, robot_b)
+        logger.info("系统", "命令处理器已重新初始化")
+        
+        print("\n" + "="*70)
+        print("✅ 系统已激活，开始正常工作")
+        print("="*70 + "\n")
+        
         # 保持主线程运行
         while True:
             time.sleep(1)

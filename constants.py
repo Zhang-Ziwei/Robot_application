@@ -42,7 +42,7 @@ HTTP_SERVER_PORT = 8090  # HTTP服务器端口（注意：8081被Docker容器占
 # 后部暂存区默认配置
 DEFAULT_BACK_TEMP_STORAGE = {
     "glass_bottle_1000": [0, 0, 0, 0],
-    "glass_bottle_500": [0, 0, 0, 0],
+    "glass_bottle_500": [0, 0, 0, 0, 0, 0, 0, 0],
     "glass_bottle_250": [0, 0, 0, 0]
 }
 

@@ -1,5 +1,5 @@
 import threading
-from constants import PLCHoldingRegisters, PLCCoils
+# from constants import PLCHoldingRegisters, PLCCoils  # PLC功能暂时不需要
 import time
 
 # 机器人A步骤函数
@@ -28,6 +28,7 @@ def a_step3(robot_a):
     print("\n===== Robot A Step 3: Place bottle on opener for capping =====")
     return robot_a.send_service_request("/get_strawberry_service", "place_to_equipment")
 
+'''  # PLC功能暂时不需要
 def a_step4(robot_a, plc_server):
     """从开瓶器抓取后放到箱子里"""
     print("\n===== Robot A Step 4: Place bottle from opening to box =====")
@@ -37,6 +38,7 @@ def a_step4(robot_a, plc_server):
     # 调用机器人服务
     else:
         return robot_a.send_service_request("/get_strawberry_service", "place_to_shelf")
+'''  # PLC功能暂时不需要
 
 def a_step_cback2shelf(robot_a):
     """把箱子搬到货架旁"""
@@ -64,6 +66,7 @@ def b_step3(robot_b):
     print("\n===== Robot B Step 3: Return sample bottle =====")
     return robot_b.send_service_request("/get_halfbodychemical_service", "place_reagent_bottle")
 
+'''  # PLC功能暂时不需要
 def b_step4(robot_b, plc_server):
     """将试管1放到清洗设备上"""
     print("\n===== Robot B Step 4: Move Test Tube 1 to cleaning =====")
@@ -71,12 +74,14 @@ def b_step4(robot_b, plc_server):
     if not plc_server.wait_for_state(PLCHoldingRegisters.DETECT_STATE, 4):
         return False
     return robot_b.send_service_request("/get_halfbodychemical_service", "pour_out_clean", 1)
+'''  # PLC功能暂时不需要
 
 def b_step5(robot_b):
     """将试管1从清洗设备上拿到试管架上"""
     print("\n===== Robot B Step 5: Move Test Tube 1 to rack =====")
     return robot_b.send_service_request("/get_halfbodychemical_service", "take_tube_rack", 1)
 
+'''  # PLC功能暂时不需要
 def b_step6(robot_b, plc_server):
     """将试管2放到清洗设备上"""
     print("\n===== Robot B Step 6: Move Test Tube 2 to cleaning =====")
@@ -84,13 +89,17 @@ def b_step6(robot_b, plc_server):
     if not plc_server.wait_for_state(PLCHoldingRegisters.DETECT_STATE, 5):
         return False
     return robot_b.send_service_request("/get_halfbodychemical_service", "pour_out_clean", 2)
+'''  # PLC功能暂时不需要
 
 def b_step7(robot_b):
     """将试管2从清洗设备上拿到试管架上"""
     print("\n===== Robot B Step 7: Move Test Tube 2 to rack =====")
     return robot_b.send_service_request("/get_halfbodychemical_service", "take_tube_rack", 2)
 
-# PLC步骤函数
+# ============================================================================
+# PLC步骤函数 - 暂时不需要，已注释
+# ============================================================================
+'''
 def plc_step1(plc_server):
     """控制开瓶器开盖，等待开盖完成（状态3）"""
     print("\n===== PLC Step 1: Start opening lid =====")
@@ -185,7 +194,10 @@ def plc_step11(plc_server):
 
 def plc_step12(plc_server):
     print("\n######PLC复位######")
+'''  # PLC功能暂时不需要
 
+
+'''  # PLC功能暂时不需要
 def execute_parallel_tasks(robot_a, robot_b, plc_server):
     """执行并行任务：机器人A和机器人B的后续步骤"""
     task_a_success = [True]  # 使用列表以便在闭包中修改
@@ -280,7 +292,10 @@ def execute_parallel_tasks(robot_a, robot_b, plc_server):
     thread_a.join()
     
     return task_a_success[0] and task_b_success
+'''  # PLC功能暂时不需要
 
+
+'''  # PLC功能暂时不需要
 def execute_test_process(robot_b, plc_server, type=1):
     while True:
         if not(b_step1(robot_b)): break
@@ -301,7 +316,10 @@ def execute_test_process(robot_b, plc_server, type=1):
         #plc_step10(plc_server)
         if(plc_step10(plc_server) and input('是否进入下个循环，输入y/n') == 'n'):
             break
+'''  # PLC功能暂时不需要
 
+
+'''  # PLC功能暂时不需要
 def execute_plc_process(plc_server):
     plc_step1(plc_server)
     plc_step2(plc_server)
@@ -315,16 +333,19 @@ def execute_plc_process(plc_server):
     plc_step10(plc_server)
     plc_step8(plc_server)
     plc_step9(plc_server)
+'''  # PLC功能暂时不需要
 
 
+# 主流程函数
+'''  # PLC功能暂时不需要
 def execute_full_process(robot_a, robot_b, plc_server, type=1):
-    """执行完整流程"""
+    # 执行完整流程
     print("\n===== Starting Full Process =====")
-    '''if not a_step_pick_box(robot_a，0):
-        print("\n===== Fail a_step_search =====")
-        return False
-    else:
-        print("\n===== Success a_step_search =====")'''
+    # if not a_step_pick_box(robot_a, 0):
+    #     print("\n===== Fail a_step_search =====")
+    #     return False
+    # else:
+    #     print("\n===== Success a_step_search =====")
     if not a_step_pick_box(robot_a, 0, 360):
         print("\n===== Fail a_step_pick_box =====")
         return False
@@ -390,7 +411,10 @@ def execute_full_process(robot_a, robot_b, plc_server, type=1):
     
     print("\n===== Full Process Completed Successfully =====")
     return True
+'''  # PLC功能暂时不需要
 
+
+'''  # PLC功能暂时不需要
 def execute_robotA_test(robot_a, plc_server):
     """机器人A单独测试流程"""
     print("\n===== Starting Robot A Test =====")
@@ -442,3 +466,4 @@ def execute_robotA_test(robot_a, plc_server):
 
     print("\n===== Robot A Test Completed Successfully =====")
     return True
+'''  # PLC功能暂时不需要

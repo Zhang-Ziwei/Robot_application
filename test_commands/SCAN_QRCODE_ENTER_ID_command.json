@@ -10,8 +10,9 @@
     "cmd_id": "SCAN_QRCODE_ENTER_ID_001",
     "cmd_type": "SCAN_QRCODE_ENTER_ID",
     "params": {
-        "qrcode_id": "12345",
-        "type": "glass_bottle_1000",
+        "success": true,
+        "qrcode_id": "123455",
+        "type": "glass_bottle_500",
         "task": "split_liquid"
     },
     "extra": {}

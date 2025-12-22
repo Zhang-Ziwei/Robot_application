@@ -2,7 +2,7 @@
 命令处理器模块
 处理各种CMD_TYPES的具体执行逻辑
 """
-
+import time
 import threading
 import uuid
 from typing import Dict, List, Any, Optional
@@ -27,6 +27,8 @@ class CmdHandler:
         # 等待SCAN_QRCODE_ENTER_ID的事件和数据
         self.scan_enter_id_event = threading.Event()
         self.scan_enter_id_data = None
+        # 等待START_WORKING命令的事件
+        self.start_working_event = threading.Event()
         # 状态机
         self.task_state_machine = get_task_state_machine()
     
@@ -43,10 +45,13 @@ class CmdHandler:
         cmd_type = cmd_data.get("cmd_type")
         cmd_id = cmd_data.get("cmd_id")
         
-        logger.info("命令处理器", f"收到命令: {cmd_type} (ID: {cmd_id})")
+        # GET_TASK_STATE 命令不打印日志，避免刷屏
+        if cmd_type != "GET_TASK_STATE":
+            logger.info("命令处理器", f"收到命令: {cmd_type} (ID: {cmd_id})")
         
         # 根据cmd_type分发到对应的处理函数
         handlers = {
+            "START_WORKING": self.handle_start_working,
             "PICK_UP": self.handle_pickup,
             "PUT_TO": self.handle_put_to,
             "TAKE_BOTTOL_FROM_SP_TO_SP": self.handle_transfer,
@@ -390,47 +395,23 @@ class CmdHandler:
         try:
             logger.info("命令处理器", f"任务 {task_id} 开始执行")
             
-            print("\n" + "="*70)
-            print("等待HTTP发送SCAN_QRCODE_ENTER_ID消息...")
-            print("请使用以下命令发送:")
-            print(f"curl -X POST http://localhost:{HTTP_SERVER_PORT} -d @test_commands/SCAN_QRCODE_ENTER_ID_command.json")
-            print("="*70 + "\n")
-            
-            # 清除之前的事件和数据
-            self.scan_enter_id_event.clear()
-            self.scan_enter_id_data = None
-            
-            # 等待事件触发（超时时间300秒）
-            logger.info("命令处理器", "等待SCAN_QRCODE_ENTER_ID消息...")
-            if self.scan_enter_id_event.wait(timeout=300):
-                if self.scan_enter_id_data:
-                    bottle_id = self.scan_enter_id_data.get("bottle_id")
-                    object_type = self.scan_enter_id_data.get("type")
-                    logger.info("命令处理器", f"接收到瓶子信息: {bottle_id}, 类型: {object_type}")
-                    print(f"✓ 已接收到瓶子ID: {bottle_id}")
-                else:
-                    self.task_state_machine.set_error("接收数据异常")
-                    logger.error("命令处理器", "接收到事件但数据为空")
-                    return
-            else:
-                self.task_state_machine.set_error("等待扫码ID录入超时")
-                logger.error("命令处理器", "等待SCAN_QRCODE_ENTER_ID消息超时")
-                return
-            input("press enter to continue...")
-
+            #input("press enter to continue...")
             # 订阅导航状态topic
             logger.info("命令处理器", "订阅 /navigation_status topic")
-            self.robot_a.subscribe_topic(
+            subscribe_success = self.robot_a.subscribe_topic(
                 topic_name="/navigation_status",
-                msg_type="NavigationStatus",
+                msg_type="navi_types/NavigationStatus",
                 throttle_rate=0,
                 queue_length=1
             )
-            
+            if not subscribe_success:
+                self.task_state_machine.set_error("订阅导航状态失败")
+                logger.error("命令处理器", "订阅导航状态失败")
+
             # 获取存储管理器
             storage_mgr = get_storage_manager()
             back_temp_storage = storage_mgr.get_storage()
-            
+
             # 步骤1: 导航到扫描台
             self.task_state_machine.update_step(TaskStep.NAVIGATING_TO_SCAN, "开始导航到扫描台")
             #input("press enter to continue...")
@@ -444,9 +425,11 @@ class CmdHandler:
             # 导航后检查导航状态（支持连接断开重连）
             
             waiting_navigation_status_result = self._wait_for_navigation_finished()
+            #print("waiting_navigation_status_result: ", waiting_navigation_status_result)
             if not waiting_navigation_status_result:
+                logger.error("命令处理器", "导航到扫描台失败")
+                print("导航到扫描台失败")
                 return
-
             # 步骤2: 抓取扫描枪（如果需要）
             # self.task_state_machine.update_step(TaskStep.GRAB_SCAN_GUN, "抓取扫描枪")
             # ... 抓取扫描枪的代码 ...
@@ -476,16 +459,13 @@ class CmdHandler:
                     "cv_detect"
                 )
                 
-                # 模拟数据
-                cv_detect_result = True
-                object_pose = "pose_0"
-                object_type = "glass_bottle_500"
-                
                 if not cv_detect_result:
                     logger.info("命令处理器", "检测不到更多瓶子，扫码任务完成")
-                    self.task_state_machine.complete_task(True, "所有瓶子已扫描完成")
-                    return
-                
+                    self.task_state_machine.update_step(TaskStep.CV_DETECTING_EMPTY, "视觉检测瓶子已抓完")
+                    break
+                else:
+                    self.task_state_machine.update_step(TaskStep.CV_DETECTING_SUCCESS, "视觉检测瓶子成功")
+                    logger.info("命令处理器", "视觉检测瓶子成功")
                 #input("press enter to continue...")
                 
                 # 检查对应类型暂存区是否已满
@@ -515,8 +495,8 @@ class CmdHandler:
                 
 
 
-                # 步骤5: 扫描二维码
-                self.task_state_machine.update_step(TaskStep.SCANNING, "扫描二维码")
+                # 步骤5: 把瓶子放在旋转平台上,并按下按钮让平台旋转
+                self.task_state_machine.update_step(TaskStep.PUT_TO_SCAN_MACHINE, "放置到扫描转盘")
                 scan_result = self.robot_a.send_service_request(
                     "/get_strawberry_service",
                     "scan"
@@ -525,31 +505,62 @@ class CmdHandler:
                     self.task_state_machine.set_error("扫描二维码失败")
                     logger.error("命令处理器", "扫描失败")
                     return
-                
-                # 步骤6: 等待ID录入
-                self.task_state_machine.set_waiting_id({
-                    "type": object_type,
-                    "pose": object_pose,
-                    "slot_index": empty_storage_index
-                })
-                
-                print("\n" + "="*70)
-                print("等待HTTP发送SCAN_QRCODE_ENTER_ID消息...")
-                print("请使用以下命令发送:")
-                print(f"curl -X POST http://localhost:{HTTP_SERVER_PORT} -d @test_commands/SCAN_QRCODE_ENTER_ID_command.json")
-                print("="*70 + "\n")
+                # 步骤6: 按下按钮让平台旋转（异步）+ 等待ID录入（并行执行）
+                #input("press enter to continue...")
                 
                 # 清除之前的事件和数据
                 self.scan_enter_id_event.clear()
                 self.scan_enter_id_data = None
                 
-                # 等待事件触发（超时时间300秒）
+                # 用于存储按钮结果的变量
+                press_button_result_holder = {"result": None, "completed": False}
+                
+                def press_button_async():
+                    """异步执行按下按钮动作"""
+                    try:
+                        logger.info("命令处理器", "开始按下按钮让平台旋转...")
+                        result = self.robot_a.send_service_request(
+                            "/get_strawberry_service",
+                            "press_button"
+                        )
+                        press_button_result_holder["result"] = result
+                        press_button_result_holder["completed"] = True
+                        if result:
+                            logger.info("命令处理器", "按下按钮成功，平台开始旋转")
+                            print("✓ 按下按钮成功，平台开始旋转")
+                        else:
+                            logger.error("命令处理器", "按下按钮失败")
+                            print("✗ 按下按钮失败")
+                    except Exception as e:
+                        logger.exception_occurred("命令处理器", "按下按钮异常", e)
+                        press_button_result_holder["result"] = False
+                        press_button_result_holder["completed"] = True
+                
+                # 启动按钮线程
+                press_button_thread = threading.Thread(target=press_button_async, daemon=True)
+                press_button_thread.start()
+                logger.info("命令处理器", "按下按钮线程已启动，同时开始等待ID录入")
+                
+                print("\n" + "="*70)
+                print("【并行执行中】")
+                print("  1. 平台旋转中...")
+                print("  2. 等待HTTP发送SCAN_QRCODE_ENTER_ID消息...")
+                print("请使用以下命令发送:")
+                print(f"curl -X POST http://localhost:{HTTP_SERVER_PORT} -d @test_commands/SCAN_QRCODE_ENTER_ID_command.json")
+                print("="*70 + "\n")
+                
+                # 等待ID录入事件（与按钮动作并行）
                 logger.info("命令处理器", "等待SCAN_QRCODE_ENTER_ID消息...")
-                if self.scan_enter_id_event.wait(timeout=300):
+                self.task_state_machine.update_step(TaskStep.WAITING_ID_INPUT, "按下按钮+等待ID录入")
+                
+                if self.scan_enter_id_event.wait(timeout=150):
                     if self.scan_enter_id_data:
+                        scan_qrcode_enter_id_result = self.scan_enter_id_data.get("success")
                         bottle_id = self.scan_enter_id_data.get("bottle_id")
-                        object_type = self.scan_enter_id_data.get("type")
-                        logger.info("命令处理器", f"接收到瓶子信息: {bottle_id}, 类型: {object_type}")
+                        object_type_scan = self.scan_enter_id_data.get("type")
+                        task = self.scan_enter_id_data.get("task")
+                        self.task_state_machine.update_step(TaskStep.ID_INPUT_SUCCESS, "按下按钮+ID录入成功")
+                        logger.info("命令处理器", f"接收到瓶子信息: {bottle_id}, 类型: {object_type_scan}, 任务: {task}")
                         print(f"✓ 已接收到瓶子ID: {bottle_id}")
                     else:
                         self.task_state_machine.set_error("接收数据异常")
@@ -560,6 +571,44 @@ class CmdHandler:
                     logger.error("命令处理器", "等待SCAN_QRCODE_ENTER_ID消息超时")
                     return
                 
+                # 等待按钮线程完成（如果还没完成的话）
+                if press_button_thread.is_alive():
+                    logger.info("命令处理器", "ID已录入，等待按钮动作完成...")
+                    print("等待平台旋转完成...")
+                    press_button_thread.join(timeout=60)  # 最多等60秒
+                
+                # 检查按钮结果
+                if not press_button_result_holder["completed"]:
+                    self.task_state_machine.set_error("按压按钮超时")
+                    logger.error("命令处理器", "按压按钮超时")
+                    return
+                    
+                if not press_button_result_holder["result"]:
+                    self.task_state_machine.set_error("按压按钮失败")
+                    logger.error("命令处理器", "按压按钮失败")
+                    return
+                
+                if not scan_qrcode_enter_id_result:
+                    self.task_state_machine.set_error("扫描二维码ID录入失败")
+                    logger.error("命令处理器", "扫描二维码ID录入失败")
+                    bottle_id = "unknown"
+                    object_type_scan = "unknown"
+                    task = "unknown"
+                    return
+                
+                print("✓ 按钮动作和ID录入都已完成")
+
+                # 机器人识别瓶子类型出错，需要更新暂存区位置
+                if object_type != object_type_scan:
+                    object_type = object_type_scan
+                    # 检查对应类型暂存区是否已满
+                    empty_storage_index = storage_mgr.get_empty_slot_index(object_type)
+                    if empty_storage_index is None:
+                        self.task_state_machine.set_error(f"{object_type}暂存区已满")
+                        logger.error("命令处理器", f"{object_type}暂存区已满")
+                        return
+                
+                # 步骤7: 把瓶子从旋转平台拿回来
                 scan_back_result = self.robot_a.send_service_request(
                     "/get_strawberry_service",
                     "pick_scan_back",
@@ -570,7 +619,7 @@ class CmdHandler:
                     return
                 #input("press enter to continue...")
                 
-                # 步骤7: 放置到后部平台
+                # 步骤8: 放置到后部平台
                 self.task_state_machine.update_step(TaskStep.PUTTING_TO_BACK, f"放置到后部平台 slot_{empty_storage_index}")
                 put_result = self.robot_a.send_service_request(
                     "/get_strawberry_service",
@@ -589,18 +638,17 @@ class CmdHandler:
                     # 更新暂存区状态
                     storage_mgr.update_slot(object_type, empty_storage_index, bottle_id)
                     # 记录已扫描的瓶子
-                    self.task_state_machine.add_scanned_bottle(bottle_id, object_type, empty_storage_index)
+                    self.task_state_machine.add_scanned_bottle(bottle_id, object_type, empty_storage_index, task)
                     logger.info("命令处理器", f"瓶子 {bottle_id} 已放置到 {object_type}[{empty_storage_index}]")
                 
                 #input("press enter to continue...")
                 
-                # 步骤8: 转回正面
+                # 步骤9: 转回正面
                 self.task_state_machine.update_step(TaskStep.TURNING_BACK_FRONT, "转回正面")
                 turn_waist_result = self.robot_a.send_service_request(
                     "/get_strawberry_service",
                     "back_to_front",
                 )
-                
                 if not turn_waist_result:
                     self.task_state_machine.set_error("转回正面失败")
                     logger.error("命令处理器", "转腰失败")
@@ -608,7 +656,7 @@ class CmdHandler:
                 # 继续下一个瓶子（循环）
             #input("press enter to continue...")
             
-            # 步骤9: 导航到分液台
+            # 步骤10: 导航到分液台
             self.task_state_machine.update_step(TaskStep.NAVIGATING_TO_SPLIT, "导航到分液台")
             navigation_to_pose_result = self.robot_a.send_service_request(
                 "/get_strawberry_service",
@@ -621,15 +669,64 @@ class CmdHandler:
                 return
             #input("press enter to continue...")
             
-            # 步骤10: 放下瓶子
-            self.task_state_machine.update_step(TaskStep.PUTTING_DOWN, "放下瓶子到分液台")
-            put_down_result = self.robot_a.send_service_request(
-                "/get_strawberry_service",
-                "put_down_split_table",
-                extra_params={
-                    "target_pose": "pick_point_0"
-                }
-            )
+            # 步骤11: 放下暂存区所有瓶子到分液台
+            self.task_state_machine.update_step(TaskStep.PUTTING_DOWN, "放下暂存区所有瓶子到分液台")
+            
+            # 获取暂存区所有瓶子
+            all_bottles_in_storage = []
+            for bottle_type, slots in back_temp_storage.items():
+                for slot_index, bottle_id in enumerate(slots):
+                    if bottle_id != 0:  # 不为空的槽位
+                        all_bottles_in_storage.append({
+                            "bottle_type": bottle_type,
+                            "bottle_id": bottle_id,
+                            "slot_index": slot_index
+                        })
+            
+            logger.info("命令处理器", f"暂存区共有 {len(all_bottles_in_storage)} 个瓶子需要放置")
+            print(f"\n✓ 暂存区共有 {len(all_bottles_in_storage)} 个瓶子")
+            
+            # 遍历所有瓶子，执行放置动作
+            for i, bottle_info in enumerate(all_bottles_in_storage):
+                #input("press enter to continue...")
+                bottle_id = bottle_info["bottle_id"]
+                slot_index = bottle_info["slot_index"]
+                bottle_type = bottle_info["bottle_type"]
+                
+                print(f"\n处理第 {i+1}/{len(all_bottles_in_storage)} 个瓶子:")
+                print(f"  瓶子ID: {bottle_id}")
+                print(f"  类型: {bottle_type}")
+                print(f"  槽位: {slot_index}")
+                
+                self.task_state_machine.update_step(
+                    TaskStep.PUTTING_DOWN_BOTTLE, 
+                    f"放下瓶子 {i+1}/{len(all_bottles_in_storage)}: {bottle_id}"
+                )
+                
+                # 执行放置动作
+                put_down_result = self.robot_a.send_service_request(
+                    "/get_strawberry_service",
+                    "put_down_split_table",
+                    extra_params={
+                        "target_pose": "pick_point_" + str(slot_index)
+                    }
+                )
+                if not put_down_result:
+                    error_msg = f"放置瓶子 {bottle_id} 失败"
+                    logger.error("命令处理器", error_msg)
+                    self.task_state_machine.set_error(error_msg)
+                    return
+                else:
+                    # 更新暂存区状态
+                    storage_mgr.update_slot(bottle_type, slot_index, 0)
+                    
+                print(f"✓ 瓶子 {bottle_id} 放置完成")
+                logger.info("命令处理器", f"瓶子 {bottle_id} 放置完成")
+            
+            print(f"\n✓ 所有瓶子放置完成，共 {len(all_bottles_in_storage)} 个")
+            logger.info("命令处理器", f"所有瓶子放置完成，共 {len(all_bottles_in_storage)} 个")
+            self.task_state_machine.update_step(TaskStep.COMPLETED, "任务完成")
+            self.task_state_machine.complete_task(True, "流程结束")
                 
                 
             
@@ -654,10 +751,8 @@ class CmdHandler:
         target_cmd_id = params.get("target_cmd_id")
         
         if target_cmd_id:
-            logger.info("命令处理器", f"查询指定任务的执行状态: {target_cmd_id}")
             state = self.task_state_machine.get_state(target_cmd_id)
         else:
-            logger.info("命令处理器", "查询机器人当前任务状态")
             state = self.task_state_machine.get_state()
         
         # 检查是否找到任务
@@ -697,6 +792,7 @@ class CmdHandler:
         接收HTTP发送的瓶子ID信息，触发等待事件
         """
         params = cmd_data.get("params", {})
+        success = params.get("success")
         qrcode_id = params.get("qrcode_id")
         object_type = params.get("type")
         bottle_id = str(object_type) + "_" + str(qrcode_id)
@@ -713,6 +809,7 @@ class CmdHandler:
         
         # 保存数据并触发事件
         self.scan_enter_id_data = {
+            "success": success,
             "bottle_id": bottle_id,
             "type": object_type,
             "task": task
@@ -722,7 +819,7 @@ class CmdHandler:
         logger.info("命令处理器", f"瓶子ID已录入并触发事件: {bottle_id}")
         
         return {
-            "success": True,
+            "success": success,
             "message": "瓶子ID已录入，SCAN_QRCODE流程继续",
             "bottle_id": bottle_id,
             "qrcode_id": qrcode_id,
@@ -781,6 +878,21 @@ class CmdHandler:
             "data": result_data
         }
     
+    def handle_start_working(self, cmd_data: Dict) -> Dict:
+        """
+        处理START_WORKING命令
+        激活程序，开始正常工作
+        """
+        logger.info("命令处理器", "收到START_WORKING命令，程序激活")
+        
+        # 触发启动事件
+        self.start_working_event.set()
+        
+        return {
+            "success": True,
+            "message": "已接收START_WORKING命令，程序开始工作"
+        }
+    
     def _execute_pickup_sequence(self, bottle: Any) -> bool:
         """执行拾取序列（内部辅助方法）"""
         # 抓取
@@ -835,7 +947,6 @@ class CmdHandler:
     
     def _wait_for_navigation_finished(self) -> bool:
         """等待导航完成"""
-        import time
         status_names = {
             0: "NONE",
             1: "STANDBY，导航待机中",
@@ -845,7 +956,29 @@ class CmdHandler:
             5: "FINISHED，导航完成",
             6: "FAILURE，导航失败"
         }
-        status_code=1
+        taskstatus_names = {
+            0: "NONE",
+            1: "RUNNING，运行中",
+            2: "SUCCESS，运行成功",
+            3: "FAILED，运行失败"
+        }
+        taskstatus_code_temp = 0
+        while True:
+            nav_status = self._wait_for_topic_message("/navigation_status", timeout=10, retry_on_disconnect=True)
+            if nav_status:
+                taskstatus_code = nav_status.get("taskstate", 0).get("value", 0)
+                taskstatus_name = taskstatus_names.get(taskstatus_code, f"UNKNOWN({taskstatus_code})")
+                if taskstatus_code_temp != taskstatus_code:
+                    logger.info("命令处理器", f"导航状态已更新: {taskstatus_code} ({taskstatus_name})")
+                    print(f"✓ 导航状态已更新: {taskstatus_code} - {taskstatus_name}")
+                    taskstatus_code_temp = taskstatus_code
+                if taskstatus_code == 2:
+                    return True
+                elif taskstatus_code == 3:
+                    logger.error("命令处理器", "导航失败")
+                    self.task_state_machine.set_error("导航失败")
+                    return False
+        '''status_code=1
         while status_code == 1:
             nav_status = self._wait_for_topic_message("/navigation_status", timeout=10, retry_on_disconnect=True)
             if nav_status:
@@ -872,7 +1005,7 @@ class CmdHandler:
             else:
                 logger.warning("命令处理器", "未收到导航状态消息")
                 print("⚠️  未收到导航状态消息")
-                return False
+                return False'''
 
 
     def _wait_for_topic_message(self, topic_name: str, timeout: float = 60.0, retry_on_disconnect: bool = True) -> Optional[Dict]:
@@ -894,34 +1027,42 @@ class CmdHandler:
             # 检查连接状态
             if not self.robot_a.is_connected():
                 if retry_on_disconnect:
-                    logger.warning("命令处理器", f"检测到连接断开，等待重连...")
-                    print("⚠️  机器人连接已断开，等待重连...")
+                    logger.warning("命令处理器", f"检测到连接断开，开始重连...")
+                    print("⚠️  机器人连接已断开，开始重连...")
                     
-                    # 等待重连（最多等待30秒）
-                    reconnect_timeout = 30
-                    reconnect_start = time.time()
+                    # 主动触发重连
+                    reconnect_success = self.robot_a.connect()
                     
-                    while time.time() - reconnect_start < reconnect_timeout:
-                        if self.robot_a.is_connected():
-                            logger.info("命令处理器", "连接已恢复")
-                            print("✓ 机器人连接已恢复")
-                            
-                            # 重新订阅topic
-                            logger.info("命令处理器", f"重新订阅topic: {topic_name}")
-                            self.robot_a.subscribe_topic(
-                                topic_name=topic_name,
-                                msg_type="NavigationStatus",
-                                throttle_rate=0,
-                                queue_length=1
-                            )
-                            time.sleep(1)  # 等待订阅生效
-                            break
+                    if reconnect_success:
+                        logger.info("命令处理器", "重连成功")
+                        print("✓ 机器人重连成功")
                         
-                        time.sleep(0.5)
-                    
-                    if not self.robot_a.is_connected():
-                        logger.error("命令处理器", "等待重连超时")
-                        print("✗ 等待重连超时")
+                        # 等待连接稳定
+                        time.sleep(2)
+                        
+                        # 重新订阅topic
+                        logger.info("命令处理器", f"重新订阅topic: {topic_name}")
+                        print(f"[DEBUG] 开始重新订阅topic: {topic_name}")
+                        
+                        subscribe_success = self.robot_a.subscribe_topic(
+                            topic_name=topic_name,
+                            msg_type="navi_types/NavigationStatus",
+                            throttle_rate=0,
+                            queue_length=1
+                        )
+                        
+                        if subscribe_success:
+                            logger.info("命令处理器", "重新订阅成功")
+                            print("✓ Topic重新订阅成功")
+                            print("[DEBUG] 等待3秒让topic消息开始传输...")
+                            time.sleep(3)  # 等待订阅生效并接收第一条消息
+                        else:
+                            logger.error("命令处理器", "重新订阅失败")
+                            print("✗ Topic重新订阅失败")
+                            return None
+                    else:
+                        logger.error("命令处理器", "重连失败")
+                        print("✗ 机器人重连失败")
                         return None
                 else:
                     logger.error("命令处理器", "连接断开，放弃等待")
@@ -930,6 +1071,7 @@ class CmdHandler:
             # 尝试获取消息
             msg = self.robot_a.get_topic_message(topic_name)
             if msg:
+                #print(f"[DEBUG] 成功获取topic消息: {topic_name}")
                 return msg
             
             # 短暂等待后重试

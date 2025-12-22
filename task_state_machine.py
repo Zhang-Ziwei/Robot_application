@@ -19,13 +19,17 @@ class TaskStep(Enum):
     NAVIGATING_TO_SCAN = "导航到扫描台"
     GRAB_SCAN_GUN = "抓取扫描枪"
     CV_DETECTING = "视觉检测瓶子"
+    CV_DETECTING_EMPTY = "视觉检测瓶子已抓完"
+    CV_DETECTING_SUCCESS = "视觉检测瓶子成功"
     GRABBING_BOTTLE = "抓取瓶子"
-    SCANNING = "扫描二维码"
+    PUT_TO_SCAN_MACHINE = "放到扫描转盘"
     WAITING_ID_INPUT = "等待ID录入"
+    ID_INPUT_SUCCESS = "ID录入成功"
     PUTTING_TO_BACK = "放置到后部平台"
     TURNING_BACK_FRONT = "转回正面"
     NAVIGATING_TO_SPLIT = "导航到分液台"
-    PUTTING_DOWN = "放下瓶子"
+    PUTTING_DOWN = "放下所有瓶子"
+    PUTTING_DOWN_BOTTLE = "放下瓶子"
     COMPLETED = "完成"
     ERROR = "错误"
 
@@ -55,6 +59,9 @@ class TaskStateMachine:
         # 扫描结果
         self.scanned_bottles: List[Dict[str, Any]] = []
         self.current_bottle_info: Optional[Dict[str, Any]] = None
+
+        # 视觉检测结果
+        self.cv_detect_result: Optional[bool] = None
         
         # 线程锁
         self.lock = threading.Lock()
@@ -73,7 +80,7 @@ class TaskStateMachine:
             self.end_time = None
             self.scanned_bottles = []
             self.current_bottle_info = None
-            
+            self.cv_detect_result = None
             logger.info("状态机", f"任务开始: {task_id}")
     
     def update_step(self, step: TaskStep, message: str = ""):
@@ -112,17 +119,32 @@ class TaskStateMachine:
             self.current_bottle_info = bottle_info
             self.update_step(TaskStep.WAITING_ID_INPUT, f"等待录入瓶子ID (类型: {bottle_info.get('type', 'unknown')})")
     
-    def add_scanned_bottle(self, bottle_id: str, bottle_type: str, slot_index: int):
+    def add_scanned_bottle(self, bottle_id: str, bottle_type: str, slot_index: int, task: str):
         """添加已扫描的瓶子"""
         with self.lock:
             self.scanned_bottles.append({
                 "bottle_id": bottle_id,
                 "type": bottle_type,
                 "slot_index": slot_index,
+                "task": task,
                 "timestamp": datetime.now().isoformat()
             })
-            logger.info("状态机", f"瓶子已扫描: {bottle_id}")
+            logger.info("状态机", f"瓶子已扫描: {bottle_id}, 任务: {task}")
     
+    def get_scanned_bottle(self, bottle_id: str) -> Optional[Dict[str, Any]]:
+        """获取已扫描的瓶子"""
+        with self.lock:
+            for bottle in self.scanned_bottles:
+                if bottle.get("bottle_id") == bottle_id:
+                    return bottle
+            return None
+    
+    def delete_scanned_bottle(self, bottle_id: str):
+        """删除已扫描的瓶子"""
+        with self.lock:
+            self.scanned_bottles = [bottle for bottle in self.scanned_bottles if bottle.get("bottle_id") != bottle_id]
+            logger.info("状态机", f"瓶子已删除: {bottle_id}")
+
     def set_error(self, error_msg: str):
         """设置错误状态"""
         with self.lock:

@@ -29,7 +29,7 @@ def test_navigation_status():
     print()
     
     # 机器人A连接配置
-    ROBOT_A_HOST = "172.16.8.119"
+    ROBOT_A_HOST = "10.114.126.51"
     ROBOT_A_PORT = 9091
     
     print(f"正在连接机器人A...")

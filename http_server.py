@@ -36,15 +36,16 @@ class CommandHTTPHandler(BaseHTTPRequestHandler):
             cmd_data = json.loads(post_data.decode('utf-8'))
             
             # 打印接收消息（添加醒目输出）
-            print("\n" + "="*70)
-            print(f">>> 收到HTTP POST请求")
-            print("="*70)
-            print(f"来源: {self.client_address[0]}:{self.client_address[1]}")
-            print(f"命令类型: {cmd_data.get('cmd_type')}")
-            print(f"命令ID: {cmd_data.get('cmd_id')}")
-            print(f"完整数据: {json.dumps(cmd_data, ensure_ascii=False, indent=2)}")
-            print("="*70 + "\n")
-            
+            if cmd_data.get('cmd_type') != "GET_TASK_STATE":
+                print("\n" + "="*70)
+                print(f">>> 收到HTTP POST请求")
+                print("="*70)
+                print(f"来源: {self.client_address[0]}:{self.client_address[1]}")
+                print(f"命令类型: {cmd_data.get('cmd_type')}")
+                print(f"命令ID: {cmd_data.get('cmd_id')}")
+                print(f"完整数据: {json.dumps(cmd_data, ensure_ascii=False, indent=2)}")
+                print("="*70 + "\n")
+        
             logger.info("HTTP服务器", f"收到命令: {cmd_data.get('cmd_type')} (ID: {cmd_data.get('cmd_id')})")
             
             # 检查是否使用队列模式
@@ -66,12 +67,14 @@ class CommandHTTPHandler(BaseHTTPRequestHandler):
                 logger.info("HTTP服务器", f"任务已加入队列: {task_id}")
             else:
                 # 直接执行（同步模式）
-                print(">>> 开始执行命令（同步模式）...\n")
+                if cmd_data.get('cmd_type') != "GET_TASK_STATE":
+                    print(">>> 开始执行命令（同步模式）...\n")
                 if CommandHTTPHandler.command_callback:
                     try:
                         result = CommandHTTPHandler.command_callback(cmd_data)
-                        print(f"\n>>> 命令执行完成，结果: {result.get('success')}")
-                        print(f"    消息: {result.get('message')}\n")
+                        if cmd_data.get('cmd_type') != "GET_TASK_STATE":
+                            print(f"\n>>> 命令执行完成，结果: {result.get('success')}")
+                            print(f"    消息: {result.get('message')}\n")
                     except Exception as e:
                         print(f"\n>>> ✗ 命令执行出错: {e}\n")
                         result = {
@@ -85,8 +88,8 @@ class CommandHTTPHandler(BaseHTTPRequestHandler):
                         "message": "命令处理器未初始化"
                     }
                     print(">>> ✗ 命令处理器未初始化\n")
-                
-                logger.info("HTTP服务器", f"命令执行完成: {result.get('success')}")
+                if cmd_data.get('cmd_type') != "GET_TASK_STATE":
+                    logger.info("HTTP服务器", f"命令执行完成: {result.get('success')}")
             
             # 返回响应
             self.send_response(200)

@@ -22,8 +22,11 @@ class RobotController:
         self.retry_interval = retry_interval  # 重试间隔（秒）
         self.retry_count = 0  # 当前重试次数
         # Topic订阅相关
-        self.subscribed_topics = {}  # {topic_name: callback_function}
+        self.subscribed_topics = {}  # {topic_name: msg_type}
         self.topic_messages = {}  # {topic_name: latest_message}
+        self._topic_listener_started = False  # 监听器是否已启动
+        # 服务请求响应队列
+        self.service_response_future = None  # 用于存储等待的服务响应
     
     def _get_address_str(self):
         """获取地址字符串（用于显示）"""
@@ -80,6 +83,13 @@ class RobotController:
                     self.loop.call_soon_threadsafe(self.loop.stop())
                 if self.thread and self.thread.is_alive():
                     self.thread.join(timeout=2)
+                
+                # 重置topic监听器标志（重连时需要重新启动）
+                self._topic_listener_started = False
+                
+                # 清空之前的topic订阅记录和消息缓存
+                self.subscribed_topics.clear()
+                self.topic_messages.clear()
                 
                 # 创建新的事件循环并在单独的线程中运行
                 self.loop = asyncio.new_event_loop()
@@ -215,7 +225,7 @@ class RobotController:
         """检查连接状态"""
         return self.connected
     
-    def send_service_request(self, service, action, type=-1, maxtime=120, extra_params=None):
+    def send_service_request(self, service, action, type=-1, maxtime=600, extra_params=None):
         """发送服务请求到机器人，支持自动重连"""
         
         # 如果连接已断开，先尝试重连
@@ -316,15 +326,18 @@ class RobotController:
                 
                 return False
 
-    async def _async_send_and_receive(self, request_str, maxtime=60):
+    async def _async_send_and_receive(self, request_str, maxtime=120):
         """异步发送请求并等待响应"""
         try:
+            # 创建一个Future用于接收响应
+            self.service_response_future = asyncio.Future()
+            
             print(f"[DEBUG] 发送消息到机器人...")
             await self.websocket.send(request_str)
             print(f"[DEBUG] 消息已发送，等待机器人响应（最长{maxtime}秒）...")
             
-            # 超时时间应该与外层的 future.result() 超时一致
-            response_str = await asyncio.wait_for(self.websocket.recv(), timeout=maxtime)
+            # 通过Future等待统一监听器传递的响应
+            response_str = await asyncio.wait_for(self.service_response_future, timeout=maxtime)
             print(f"✓ {self.robot_name} 收到响应:\n{response_str}")
             
             response = json.loads(response_str)
@@ -357,11 +370,15 @@ class RobotController:
             target_pose_return_value = values.get("target_pose_return", False)
             has_type_return = "type_return" in values
             type_return_value = values.get("type_return", False)
-            if target_pose_return_value!=None and type_return_value!=None:
-                return True, target_pose_return_value, type_return_value
+            
 
             # 判断操作是否成功
             operation_success = (result_value and finish_value)
+
+            if target_pose_return_value!=None and type_return_value!=None and operation_success:
+                return True, target_pose_return_value, type_return_value
+            elif target_pose_return_value!=None and type_return_value!=None and not operation_success:
+                return False, None, None
             if operation_success:
                 print(f"✓ {self.robot_name} 操作成功完成")
                 return True
@@ -433,13 +450,16 @@ class RobotController:
             self.subscribed_topics[topic_name] = msg_type
             self.topic_messages[topic_name] = None
             
-            # 启动消息接收循环（如果尚未启动）
+            # 启动统一消息接收循环（如果尚未启动）
             if not hasattr(self, '_topic_listener_started') or not self._topic_listener_started:
                 self._topic_listener_started = True
+                print(f"[DEBUG] {self.robot_name} 启动统一消息监听器")
                 asyncio.run_coroutine_threadsafe(
-                    self._topic_message_listener(),
+                    self._unified_message_listener(),
                     self.loop
                 )
+            else:
+                print(f"[DEBUG] {self.robot_name} 消息监听器已在运行")
             
             print(f"✓ {self.robot_name} 成功订阅topic: {topic_name}")
             return True
@@ -494,12 +514,12 @@ class RobotController:
             get_error_logger().exception_occurred(self.robot_name, f"取消订阅topic {topic_name}", e)
             return False
     
-    async def _topic_message_listener(self):
+    async def _unified_message_listener(self):
         """
-        后台监听topic消息（异步）
-        持续接收并存储最新的topic消息
+        统一消息监听器（异步）
+        处理所有websocket消息：topic消息和服务响应
         """
-        print(f"[DEBUG] {self.robot_name} 启动topic消息监听器")
+        print(f"[DEBUG] {self.robot_name} 启动统一消息监听器")
         
         try:
             while self.connected and self.websocket:
@@ -508,28 +528,38 @@ class RobotController:
                     message_str = await asyncio.wait_for(self.websocket.recv(), timeout=1.0)
                     message = json.loads(message_str)
                     
-                    # 检查是否是topic消息
-                    if message.get("op") == "publish":
+                    # 检查消息类型
+                    op = message.get("op")
+                    
+                    if op == "publish":
+                        # Topic消息
                         topic_name = message.get("topic")
                         msg_data = message.get("msg")
                         
                         if topic_name in self.subscribed_topics:
                             # 存储最新消息
                             self.topic_messages[topic_name] = msg_data
-                            # print(f"[DEBUG] {self.robot_name} 收到topic消息: {topic_name}") # 显示是否收到消息
-                            # print(f"        消息内容: {msg_data}")
+                    
+                    else:
+                        # 服务响应或其他消息
+                        if self.service_response_future and not self.service_response_future.done():
+                            # 将响应传递给等待的协程
+                            self.service_response_future.set_result(message_str)
                     
                 except asyncio.TimeoutError:
                     # 超时是正常的，继续循环
                     continue
                 except Exception as e:
-                    print(f"[DEBUG] {self.robot_name} topic监听器错误: {e}")
+                    print(f"[DEBUG] {self.robot_name} 消息监听器错误: {e}")
+                    # 如果有等待的future，设置异常
+                    if self.service_response_future and not self.service_response_future.done():
+                        self.service_response_future.set_exception(e)
                     break
                     
         except Exception as e:
-            print(f"✗ {self.robot_name} topic监听器异常退出: {e}")
+            print(f"✗ {self.robot_name} 消息监听器异常退出: {e}")
         finally:
-            print(f"[DEBUG] {self.robot_name} topic消息监听器已停止")
+            print(f"[DEBUG] {self.robot_name} 统一消息监听器已停止")
             self._topic_listener_started = False
     
     def get_topic_message(self, topic_name):
@@ -542,7 +572,34 @@ class RobotController:
         返回:
             dict: 最新的消息数据，如果没有则返回None
         """
-        return self.topic_messages.get(topic_name)
+        msg = self.topic_messages.get(topic_name)
+        if msg is None:
+            # 检查是否已订阅
+            if topic_name not in self.subscribed_topics:
+                print(f"[DEBUG] {self.robot_name} topic {topic_name} 未订阅")
+                # 重新订阅topic
+                logger.info("命令处理器", f"重新订阅topic: {topic_name}")
+                print(f"[DEBUG] 开始重新订阅topic: {topic_name}")
+                
+                subscribe_success = self.robot_a.subscribe_topic(
+                    topic_name=topic_name,
+                    msg_type="navi_types/NavigationStatus",
+                    throttle_rate=0,
+                    queue_length=1
+                )
+                
+                if subscribe_success:
+                    logger.info("命令处理器", "重新订阅成功")
+                    print("✓ Topic重新订阅成功")
+                    print("[DEBUG] 等待3秒让topic消息开始传输...")
+                    time.sleep(3)  # 等待订阅生效并接收第一条消息
+                else:
+                    logger.error("命令处理器", "重新订阅失败")
+                    print("✗ Topic重新订阅失败")
+                    return None
+            else:
+                print(f"[DEBUG] {self.robot_name} topic {topic_name} 已订阅但没有收到消息")
+        return msg
     
     def close(self):
         """关闭与机器人的连接"""
