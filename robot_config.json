@@ -1,0 +1,22 @@
+{
+    "robots": {
+        "robot_b": {
+            "host": "172.16.8.192",
+            "port": "9090",
+            "robot_type": "robot_b",
+            "enabled": true
+        }
+    },
+    "http_server": {
+        "port": 8090
+    },
+    "auto_charging": {
+        "enabled": true,
+        "require_battery_on_startup": true,
+        "battery_wait_timeout": 60,
+        "check_interval": 600,
+        "low_threshold": 0.30,
+        "full_threshold": 0.80
+    }
+}
+

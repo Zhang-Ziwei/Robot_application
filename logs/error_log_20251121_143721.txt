@@ -1,0 +1,13 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2025-11-21 14:37:21
+================================================================================
+
+[2025-11-21 14:37:21] [ERROR] Robot A: 操作异常 - TCP连接
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 144, in _async_connect
+    tcp_socket.connect((self.host, int(self.port)))
+OSError: [Errno 113] No route to host
+
+--------------------------------------------------------------------------------

@@ -1,0 +1,108 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2026-01-12 15:30:28
+================================================================================
+
+[2026-01-12 15:30:28] [INFO] 系统: 机器人控制系统启动
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 存储管理器: 所有存储状态已重置为默认值
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 存储管理器: 存储状态已保存到: storage_state.json
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 存储管理器: 存储状态已重置并保存
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 系统: 暂存区状态已重置
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 系统: 启动HTTP服务器模式
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] HTTP服务器: 命令回调函数已设置
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 状态机: 任务状态机已初始化
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 命令处理器: 命令处理器初始化完成，管理 0 台机器人
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] HTTP服务器: HTTP服务器启动成功: 0.0.0.0:8090
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] HTTP服务器: 开始监听HTTP请求...
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:28] [INFO] 系统: 程序进入休眠状态，等待START_WORKING命令
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:35] [INFO] HTTP服务器: 收到命令: START_WORKING (ID: START_WORKING_001)
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:35] [INFO] 命令处理器: 收到命令: START_WORKING (ID: START_WORKING_001)
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:35] [INFO] 命令处理器: 收到START_WORKING命令，程序激活
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:35] [INFO] HTTP服务器: 命令执行完成: True
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:35] [INFO] HTTP服务器: HTTP请求: "POST / HTTP/1.1" 200 -
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:35] [INFO] 系统: 已接收START_WORKING命令，开始连接机器人
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:45] [ERROR] Robot B: 操作异常 - WebSocket连接
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 543, in __await_impl__
+    await self.connection.handshake(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 104, in handshake
+    await asyncio.wait(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/tasks.py", line 413, in wait
+    return await _wait(fs, timeout, return_when, loop)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/tasks.py", line 525, in _wait
+    await waiter
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 574, in __await_impl__
+    raise SecurityError(f"more than {MAX_REDIRECTS} redirects")
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/async_timeout.py", line 181, in __aexit__
+    self._do_exit(exc_type)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/async_timeout.py", line 268, in _do_exit
+    raise asyncio.TimeoutError
+asyncio.exceptions.TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 213, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 578, in __await_impl__
+    raise TimeoutError("timed out during opening handshake") from exc
+asyncio.exceptions.TimeoutError: timed out during opening handshake
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 223, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 543, in __await_impl__
+    await self.connection.handshake(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 114, in handshake
+    raise self.protocol.handshake_exc
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/client.py", line 325, in parse
+    self.process_response(response)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/client.py", line 142, in process_response
+    raise InvalidStatus(response)
+websockets.exceptions.InvalidStatus: server rejected WebSocket connection: HTTP 400
+
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:50] [INFO] Robot B: 连接成功 - 172.16.8.239:9091 (第2次尝试)
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:50] [INFO] 系统: robot_b 连接成功
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:50] [INFO] 命令处理器: 命令处理器初始化完成，管理 1 台机器人
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:50] [INFO] 系统: 命令处理器已重新初始化
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:57] [INFO] HTTP服务器: 正在停止HTTP服务器...
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:58] [INFO] HTTP服务器: HTTP服务器已停止
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:58] [INFO] 系统: 开始清理资源
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:58] [INFO] 系统: 暂存区状态已保存
+--------------------------------------------------------------------------------
+[2026-01-12 15:30:58] [INFO] 系统: 机器人控制系统已停止
+--------------------------------------------------------------------------------

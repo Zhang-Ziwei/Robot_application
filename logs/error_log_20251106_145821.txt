@@ -1,0 +1,31 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2025-11-06 14:58:21
+================================================================================
+
+[2025-11-06 14:58:22] [INFO] 模拟机器人: 初始化模拟机器人: Mock Robot (192.168.217.100:9091)
+--------------------------------------------------------------------------------
+[2025-11-06 14:58:22] [INFO] 模拟机器人: 初始化模拟机器人: Mock Robot (192.168.217.80:9090)
+--------------------------------------------------------------------------------
+[2025-11-06 14:58:22] [INFO] 模拟机器人: Mock Robot (192.168.217.100:9091) 模拟连接成功
+--------------------------------------------------------------------------------
+[2025-11-06 14:58:22] [INFO] 模拟机器人: Mock Robot (192.168.217.80:9090) 模拟连接成功
+--------------------------------------------------------------------------------
+[2025-11-06 14:58:22] [INFO] 命令处理器: 命令处理器初始化完成
+--------------------------------------------------------------------------------
+[2025-11-06 14:58:22] [INFO] HTTP服务器: 命令回调函数已设置
+--------------------------------------------------------------------------------
+[2025-11-06 14:58:22] [ERROR] HTTP服务器: 操作异常 - 启动服务器
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/http_server.py", line 102, in start
+    self.server = HTTPServer((self.host, self.port), CommandHTTPHandler)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/http/server.py", line 137, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 98] Address already in use
+
+--------------------------------------------------------------------------------

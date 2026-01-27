@@ -1,0 +1,4 @@
+# 忽略日志大文件
+logs/*.txt
+# 忽略tar包大文件
+mock_rosbridge/*.tar

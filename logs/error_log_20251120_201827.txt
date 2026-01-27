@@ -1,0 +1,48 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2025-11-20 20:18:27
+================================================================================
+
+[2025-11-20 20:18:27] [ERROR] Robot A: 操作异常 - WebSocket连接
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 182, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 541, in __await_impl__
+    self.connection = await self.create_connection()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 467, in create_connection
+    _, connection = await loop.create_connection(factory, **kwargs)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1065, in create_connection
+    raise exceptions[0]
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1050, in create_connection
+    sock = await self._connect_sock(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 961, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 500, in sock_connect
+    return await fut
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 535, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('172.16.8.119', 9090)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 192, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 541, in __await_impl__
+    self.connection = await self.create_connection()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 467, in create_connection
+    _, connection = await loop.create_connection(factory, **kwargs)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1065, in create_connection
+    raise exceptions[0]
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1050, in create_connection
+    sock = await self._connect_sock(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 961, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 500, in sock_connect
+    return await fut
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 535, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('172.16.8.119', 9090)
+
+--------------------------------------------------------------------------------

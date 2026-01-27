@@ -1,0 +1,212 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2025-12-24 17:51:11
+================================================================================
+
+[2025-12-24 17:51:11] [INFO] 系统: 机器人控制系统启动
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 存储管理器: 存储状态已重置为默认值
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 存储管理器: 存储状态已保存到: storage_state.json
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 存储管理器: 存储状态已重置并保存
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 系统: 暂存区状态已重置
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 系统: 启动HTTP服务器模式
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] HTTP服务器: 命令回调函数已设置
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 状态机: 任务状态机已初始化
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 命令处理器: 命令处理器初始化完成，管理 0 台机器人
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] HTTP服务器: 开始监听HTTP请求...
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] HTTP服务器: HTTP服务器启动成功: 0.0.0.0:8090
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:11] [INFO] 系统: 程序进入休眠状态，等待START_WORKING命令
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:12] [INFO] HTTP服务器: 收到命令: START_WORKING (ID: START_WORKING_001)
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:12] [INFO] 命令处理器: 收到命令: START_WORKING (ID: START_WORKING_001)
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:12] [INFO] 命令处理器: 收到START_WORKING命令，程序激活
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:12] [INFO] HTTP服务器: 命令执行完成: True
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:12] [INFO] HTTP服务器: HTTP请求: "POST / HTTP/1.1" 200 -
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:12] [INFO] 系统: 已接收START_WORKING命令，开始连接机器人
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:12] [ERROR] Robot A: 操作异常 - WebSocket连接
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 241, in parse
+    status_line = yield from parse_line(read_line)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 309, in parse_line
+    line = yield from read_line(MAX_LINE_LENGTH)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/streams.py", line 46, in read_line
+    raise EOFError(f"stream ends after {p} bytes, before end of line")
+EOFError: stream ends after 0 bytes, before end of line
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/client.py", line 301, in parse
+    response = yield from Response.parse(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 243, in parse
+    raise EOFError("connection closed while reading HTTP status line") from exc
+EOFError: connection closed while reading HTTP status line
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 192, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 543, in __await_impl__
+    await self.connection.handshake(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 114, in handshake
+    raise self.protocol.handshake_exc
+websockets.exceptions.InvalidMessage: did not receive a valid HTTP response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 202, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 541, in __await_impl__
+    self.connection = await self.create_connection()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 467, in create_connection
+    _, connection = await loop.create_connection(factory, **kwargs)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1065, in create_connection
+    raise exceptions[0]
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1050, in create_connection
+    sock = await self._connect_sock(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 961, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 500, in sock_connect
+    return await fut
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 535, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('172.16.10.231', 9090)
+
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:28] [ERROR] Robot A: 操作异常 - WebSocket连接
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 192, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 541, in __await_impl__
+    self.connection = await self.create_connection()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 467, in create_connection
+    _, connection = await loop.create_connection(factory, **kwargs)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1065, in create_connection
+    raise exceptions[0]
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1050, in create_connection
+    sock = await self._connect_sock(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 961, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 500, in sock_connect
+    return await fut
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 535, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('172.16.10.231', 9090)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 202, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 541, in __await_impl__
+    self.connection = await self.create_connection()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 467, in create_connection
+    _, connection = await loop.create_connection(factory, **kwargs)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1065, in create_connection
+    raise exceptions[0]
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1050, in create_connection
+    sock = await self._connect_sock(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 961, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 500, in sock_connect
+    return await fut
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 535, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('172.16.10.231', 9090)
+
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:43] [ERROR] Robot A: 操作异常 - WebSocket连接
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 241, in parse
+    status_line = yield from parse_line(read_line)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 309, in parse_line
+    line = yield from read_line(MAX_LINE_LENGTH)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/streams.py", line 46, in read_line
+    raise EOFError(f"stream ends after {p} bytes, before end of line")
+EOFError: stream ends after 0 bytes, before end of line
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/client.py", line 301, in parse
+    response = yield from Response.parse(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 243, in parse
+    raise EOFError("connection closed while reading HTTP status line") from exc
+EOFError: connection closed while reading HTTP status line
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 192, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 543, in __await_impl__
+    await self.connection.handshake(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 114, in handshake
+    raise self.protocol.handshake_exc
+websockets.exceptions.InvalidMessage: did not receive a valid HTTP response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 202, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 541, in __await_impl__
+    self.connection = await self.create_connection()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 467, in create_connection
+    _, connection = await loop.create_connection(factory, **kwargs)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1065, in create_connection
+    raise exceptions[0]
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 1050, in create_connection
+    sock = await self._connect_sock(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/base_events.py", line 961, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 500, in sock_connect
+    return await fut
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/asyncio/selector_events.py", line 535, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('172.16.10.231', 9090)
+
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:58] [INFO] Robot A: 连接成功 - 172.16.10.231:9090 (第4次尝试)
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:58] [INFO] 系统: robot_a 连接成功
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:58] [INFO] 命令处理器: 命令处理器初始化完成，管理 1 台机器人
+--------------------------------------------------------------------------------
+[2025-12-24 17:51:58] [INFO] 系统: 命令处理器已重新初始化
+--------------------------------------------------------------------------------
+[2025-12-24 17:54:45] [INFO] HTTP服务器: 正在停止HTTP服务器...
+--------------------------------------------------------------------------------
+[2025-12-24 17:54:45] [INFO] HTTP服务器: 正在停止HTTP服务器...
+--------------------------------------------------------------------------------
+[2025-12-24 17:54:45] [INFO] HTTP服务器: HTTP服务器已停止
+--------------------------------------------------------------------------------
+[2025-12-24 17:54:45] [WARNING] 系统: 用户中断程序 (Ctrl+C)
+--------------------------------------------------------------------------------
+[2025-12-24 17:54:45] [INFO] 系统: 开始清理资源
+--------------------------------------------------------------------------------
+[2025-12-24 17:54:45] [INFO] 系统: 暂存区状态已保存
+--------------------------------------------------------------------------------
+[2025-12-24 17:54:45] [INFO] 系统: 机器人控制系统已停止
+--------------------------------------------------------------------------------

@@ -1,0 +1,25 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2025-11-21 15:37:12
+================================================================================
+
+[2025-11-21 15:37:12] [INFO] Robot A: 连接成功 - 172.16.8.119:9091
+--------------------------------------------------------------------------------
+[2025-11-21 15:37:47] [ERROR] Robot A: 操作异常 - 取消订阅topic /navigation_status
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 496, in unsubscribe_topic
+    future.result(5)  # 5秒超时
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/concurrent/futures/_base.py", line 446, in result
+    return self.__get_result()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/concurrent/futures/_base.py", line 391, in __get_result
+    raise self._exception
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/connection.py", line 476, in send
+    async with self.send_context():
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/contextlib.py", line 181, in __aenter__
+    return await self.gen.__anext__()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/connection.py", line 957, in send_context
+    raise self.protocol.close_exc from original_exc
+websockets.exceptions.ConnectionClosedError: no close frame received or sent
+
+--------------------------------------------------------------------------------

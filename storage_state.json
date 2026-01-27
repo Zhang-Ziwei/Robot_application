@@ -1,0 +1,63 @@
+{
+    "robot_b": {
+        "glass_bottle_1000": [
+            0
+        ],
+        "glass_bottle_500": [
+            {
+                "bottle_id": "glass_bottle_500_123455",
+                "bottle_state": "未分液"
+            },
+            {
+                "bottle_id": 22222,
+                "bottle_state": "未分液"
+            },
+            {
+                "bottle_id": 33333
+            },
+            {
+                "bottle_id": 44444
+            }
+        ],
+        "glass_bottle_250": [
+            {
+                "bottle_id": "glass_bottle_250_123455",
+                "bottle_state": "未分液"
+            },
+            {
+                "bottle_id": 66666,
+                "bottle_state": "未分液"
+            },
+            {
+                "bottle_id": 77777
+            },
+            {
+                "bottle_id": 88888
+            }
+        ]
+    },
+    "robot_a": {
+        "glass_bottle_1000": [
+            0,
+            0,
+            0,
+            0
+        ],
+        "glass_bottle_500": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        "glass_bottle_250": [
+            0,
+            0,
+            0,
+            0
+        ]
+    }
+}

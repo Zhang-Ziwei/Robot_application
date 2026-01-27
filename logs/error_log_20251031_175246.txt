@@ -1,0 +1,39 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2025-10-31 17:52:46
+================================================================================
+
+[2025-10-31 17:52:46] [INFO] 系统: 机器人控制系统启动
+--------------------------------------------------------------------------------
+[2025-10-31 17:52:53] [ERROR] Robot A: 操作异常 - WebSocket连接
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 241, in parse
+    status_line = yield from parse_line(read_line)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 309, in parse_line
+    line = yield from read_line(MAX_LINE_LENGTH)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/streams.py", line 46, in read_line
+    raise EOFError(f"stream ends after {p} bytes, before end of line")
+EOFError: stream ends after 0 bytes, before end of line
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/client.py", line 301, in parse
+    response = yield from Response.parse(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/http11.py", line 243, in parse
+    raise EOFError("connection closed while reading HTTP status line") from exc
+EOFError: connection closed while reading HTTP status line
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/robot_controller.py", line 172, in _async_connect
+    self.websocket = await websockets.connect(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 543, in __await_impl__
+    await self.connection.handshake(
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/site-packages/websockets/asyncio/client.py", line 114, in handshake
+    raise self.protocol.handshake_exc
+websockets.exceptions.InvalidMessage: did not receive a valid HTTP response
+
+--------------------------------------------------------------------------------

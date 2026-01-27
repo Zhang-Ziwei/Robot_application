@@ -1,0 +1,61 @@
+================================================================================
+机器人控制系统错误日志
+启动时间: 2025-12-02 13:30:18
+================================================================================
+
+[2025-12-02 13:30:18] [INFO] 系统: 机器人控制系统启动
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:21] [INFO] 存储管理器: 存储状态已重置为默认值
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:21] [INFO] 存储管理器: 存储状态已保存到: storage_state.json
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:21] [INFO] 存储管理器: 存储状态已重置并保存
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:21] [INFO] 系统: 暂存区状态已重置
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [INFO] 系统: 启动HTTP服务器模式
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [INFO] HTTP服务器: 命令回调函数已设置
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [INFO] 状态机: 任务状态机已初始化
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [INFO] 命令处理器: 命令处理器初始化完成
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [ERROR] HTTP服务器: 操作异常 - 启动服务器
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/http_server.py", line 212, in start
+    self.server = HTTPServer((self.host, self.port), CommandHTTPHandler)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/http/server.py", line 137, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 98] Address already in use
+
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [ERROR] 系统: 操作异常 - 主循环
+异常详情:
+Traceback (most recent call last):
+  File "/home/zhangziwei/Code/robot_connect/main.py", line 122, in main
+    run_http_server_mode(robot_a, robot_b, plc_server, logger, lock)
+  File "/home/zhangziwei/Code/robot_connect/main.py", line 205, in run_http_server_mode
+    http_server.start()
+  File "/home/zhangziwei/Code/robot_connect/http_server.py", line 212, in start
+    self.server = HTTPServer((self.host, self.port), CommandHTTPHandler)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/http/server.py", line 137, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/home/zhangziwei/anaconda3/envs/robot_connect/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 98] Address already in use
+
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [INFO] 系统: 开始清理资源
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [INFO] 系统: 暂存区状态已保存
+--------------------------------------------------------------------------------
+[2025-12-02 13:30:26] [INFO] 系统: 机器人控制系统已停止
+--------------------------------------------------------------------------------
